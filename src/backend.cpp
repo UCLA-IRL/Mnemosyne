@@ -29,7 +29,7 @@ Backend::getRecord(const Name &recordName) const {
     if (!s.ok()) {
         return nullptr;
     } else {
-        ndn::Block block((const uint8_t *) value.c_str(), value.size());
+        ndn::Block block(make_span(reinterpret_cast<const uint8_t*>(value.data()), value.size()));
         return make_shared<Data>(block);
     }
 }

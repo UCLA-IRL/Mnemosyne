@@ -6,7 +6,7 @@ Mnemosyne is a distributed logger for storing logs for distributed applications.
 
 * ndn-cxx
 * leveldb
-* ndn-svs (develop branch)
+* ndn-svs
 
 * NFD - to forward the NDN network
 
@@ -26,13 +26,14 @@ To run the test files
 nfd-start
 
 # generate keys and certificates
-ndnsec key-gen /mnemosyne | ndnsec cert-gen -s /mnemosyne - > mnemosyne-anchor.cert 
+ndnsec key-gen -t e /mnemosyne | ndnsec cert-gen -s /mnemosyne - > mnemosyne-anchor.cert 
 
 mkdir test-certs
-ndnsec key-gen /mnemosyne/a | ndnsec cert-gen -s /mnemosyne - > test-certs/a.cert
-ndnsec key-gen /mnemosyne/b | ndnsec cert-gen -s /mnemosyne - > test-certs/b.cert
-ndnsec key-gen /hydra/test-logger | ndnsec cert-gen -s /mnemosyne - > test-certs/b.cert
+ndnsec key-gen -t e /mnemosyne/a | ndnsec cert-gen -s /mnemosyne - > test-certs/a.cert
+ndnsec key-gen -t e /mnemosyne/b | ndnsec cert-gen -s /mnemosyne - > test-certs/b.cert
+ndnsec key-gen -t e /hydra/test-logger | ndnsec cert-gen -s /mnemosyne - > test-certs/test-logger.cert
 
+# need to serve certificate
 
 # run each of the following as a peer
 ./build/app/mnemosyne-logger -l /mnemosyne/a

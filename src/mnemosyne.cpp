@@ -20,12 +20,16 @@ Mnemosyne::Mnemosyne(const Config &config, KeyChain &keychain, Face &network, st
         m_interfacePS(config.interfacePrefix, config.peerPrefix, network, [](const auto& i){}, getSecurityOption()),
         m_eventValidator(std::move(eventValidator))
 {
-    m_interfacePS.subscribeToPrefix(Name("/"), [&](const auto& d){ onSubscriptionData(d);});
+    m_interfacePS.subscribe(Name("/"), [&](const auto& d){ onSubscriptionData(d);});
     m_dagSync.setOnRecordCallback([&](const auto& record) {onRecordUpdate(record);});
 }
 
 void Mnemosyne::onSubscriptionData(const svs::SVSPubSub::SubscriptionData& subData) {
-    m_eventValidator->validate(subData.data, [this](const Data& eventData){
+    if (!subData.packet) {
+        NDN_LOG_WARN("error");
+        return;
+    }
+    m_eventValidator->validate(*subData.packet, [this](const Data& eventData){
         std::uniform_int_distribution<int> delayDistribution(0, 1000);
         NDN_LOG_INFO("Received event data " << eventData.getFullName());
         m_scheduler.schedule(time::milliseconds(delayDistribution(m_randomEngine)), [this, eventData]() {
@@ -38,7 +42,7 @@ void Mnemosyne::onSubscriptionData(const svs::SVSPubSub::SubscriptionData& subDa
             Record record(m_dagSync.getPeerPrefix(), eventData);
             m_dagSync.createRecord(record);
         });
-    }, [](auto&& eventData, auto&& error){
+    }, [](const Data& eventData, auto&& error){
         NDN_LOG_ERROR("Event data " << eventData.getFullName() << " verification error: " << error);
     });
 

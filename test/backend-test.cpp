@@ -1,7 +1,6 @@
 #include "mnemosyne/backend.hpp"
 #include <ndn-cxx/name.hpp>
 #include <iostream>
-#include <ndn-cxx/security/signature-sha256-with-rsa.hpp>
 
 using namespace mnemosyne;
 
@@ -11,10 +10,9 @@ makeData(const std::string& name, const std::string& content)
   using namespace ndn;
   using namespace std;
   auto data = make_shared<Data>(ndn::Name(name));
-  data->setContent((const uint8_t*)content.c_str(), content.size());
-  ndn::SignatureSha256WithRsa fakeSignature;
-  fakeSignature.setValue(ndn::encoding::makeEmptyBlock(tlv::SignatureValue));
-  data->setSignature(fakeSignature);
+  data->setContent(make_span(reinterpret_cast<const uint8_t *>(content.data()), content.size()));
+  data->setSignatureInfo(SignatureInfo(tlv::SignatureSha256WithRsa));
+  data->setSignatureValue(ndn::encoding::makeEmptyBlock(tlv::SignatureValue).getBuffer());
   data->wireEncode();
   return data;
 }
@@ -41,7 +39,7 @@ testBackEnd()
 bool
 testBackEndList() {
     Backend backend("/tmp/test-List.leveldb");
-    for (const auto &name : backend.listRecord("")) {
+    for (const auto &name : backend.listRecord("/")) {
         backend.deleteRecord(name);
     }
     for (int i = 0; i < 10; i++) {

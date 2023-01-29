@@ -26,7 +26,7 @@ void periodicAddRecord(KeyChain& keychain, shared_ptr<svs::SVSPubSub> pubSub, co
     keychain.sign(data, signingByIdentity(peerPrefix));
 
     std::cout << "publishing: " << data.getFullName() << std::endl;
-    pubSub->publishData(data);
+    pubSub->publishPacket(data);
 
     // schedule for the next record generation
     scheduler.schedule(time::seconds(5), [&keychain, pubSub, peerPrefix, &scheduler] { periodicAddRecord(keychain, pubSub, peerPrefix, scheduler); });

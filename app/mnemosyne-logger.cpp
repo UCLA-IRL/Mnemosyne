@@ -1,6 +1,7 @@
 // License: LGPL v3.0
 
 #include "mnemosyne/mnemosyne.hpp"
+#include <ndn-cxx/security/validator.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/variables_map.hpp>
@@ -51,7 +52,6 @@ int main(int argc, char* argv[]) {
         config = Config::CustomizedConfig(vm["dag-sync-prefix"].as<std::string>(),
                                           vm["interface-ps-prefix"].as<std::string>(),
                                           identity,
-                                          vm["trust-anchor"].as<std::string>(),
                                           databasePath
                                           );
         mkdir("/tmp/mnemosyne-db/", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
@@ -61,7 +61,9 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    auto ledger = std::make_shared<Mnemosyne>(*config, keychain, face);
+    auto ledger = std::make_shared<Mnemosyne>(*config, keychain, face,
+                                              std::make_shared<ndn::security::ValidatorNull>(),
+                                                      std::make_shared<ndn::security::ValidatorNull>());
 
     face.processEvents();
     return 0;

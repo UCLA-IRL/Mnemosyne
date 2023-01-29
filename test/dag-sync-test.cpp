@@ -43,14 +43,15 @@ int main(int argc, char **argv) {
                                           std::string("/tmp/mnemosyne-db/" + identity.substr(identity.rfind('/'))));
         auto configValidator = std::make_shared<ndn::security::ValidatorConfig>(face);
         configValidator->load("./test/loggers.schema");
-        validator = configValidator;
+        validator = std::make_shared<ndn::security::ValidatorNull>();
         mkdir("/tmp/mnemosyne-db/", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     }
     catch (const std::exception &e) {
         std::cout << e.what() << std::endl;
         return 1;
     }
-    auto ledger = std::make_shared<MnemosyneDagSync>(*config, keychain, face, validator);
+    auto ledger_ptr = new MnemosyneDagSync(*config, keychain, face, validator);
+    auto ledger = std::shared_ptr<MnemosyneDagSync>(ledger_ptr);
 
     Scheduler scheduler(ioService);
     periodicAddRecord(keychain, ledger, scheduler);
