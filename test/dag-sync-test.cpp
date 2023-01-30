@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
     auto ledger = std::shared_ptr<MnemosyneDagSync>(ledger_ptr);
 
     Scheduler scheduler(ioService);
-    periodicAddRecord(keychain, ledger, scheduler);
+    scheduler.schedule(time::seconds(5), [&keychain, ledger, &scheduler] { periodicAddRecord(keychain, ledger, scheduler); });
 
     face.processEvents();
     return 0;

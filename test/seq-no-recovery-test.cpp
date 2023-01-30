@@ -3,6 +3,7 @@
 //
 
 #include "seq-no-recovery.h"
+#include "backend.h"
 
 #include <iostream>
 
@@ -50,17 +51,17 @@ bool accumlator_encoding_test() {
 
 bool recovery_test() {
     mnemosyne::SeqNoRecovery rec;
-    rec.getStream(mnemosyne::SeqNoRecovery::DAG_SYNC_GROUP, "/a/b").add(1);
-    rec.getStream(mnemosyne::SeqNoRecovery::DAG_SYNC_GROUP, "/a/c").add(2);
-    rec.getStream(mnemosyne::SeqNoRecovery::LISTEN_GROUP, "/a/c").add(2);
+    rec.getStream(mnemosyne::Backend::DAG_SYNC_GROUP, "/a/b").add(1);
+    rec.getStream(mnemosyne::Backend::DAG_SYNC_GROUP, "/a/c").add(2);
+    rec.getStream(mnemosyne::Backend::LISTEN_GROUP, "/a/c").add(2);
     auto b = rec.encode();
 
     mnemosyne::SeqNoRecovery rec2;
     rec2.decode(b);
-    return rec.getStream(mnemosyne::SeqNoRecovery::DAG_SYNC_GROUP, "/a/b").isIn(1) &&
-           rec.getStream(mnemosyne::SeqNoRecovery::DAG_SYNC_GROUP, "/a/c").isIn(2) &&
-           rec.getStream(mnemosyne::SeqNoRecovery::LISTEN_GROUP, "/a/c").isIn(2) &&
-           !rec.getStream(mnemosyne::SeqNoRecovery::LISTEN_GROUP, "/a/d").isIn(1);
+    return rec.getStream(mnemosyne::Backend::DAG_SYNC_GROUP, "/a/b").isIn(1) &&
+           rec.getStream(mnemosyne::Backend::DAG_SYNC_GROUP, "/a/c").isIn(2) &&
+           rec.getStream(mnemosyne::Backend::LISTEN_GROUP, "/a/c").isIn(2) &&
+           !rec.getStream(mnemosyne::Backend::LISTEN_GROUP, "/a/d").isIn(1);
 }
 
 int main() {

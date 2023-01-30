@@ -20,6 +20,8 @@ mnemosyne::Backend::Backend(const std::string &dbDir, uint32_t seqNoBackupFreq) 
         if(!m_seqNoRecovery.decode(block)) {
             std::cerr << "Backend: seq no recovery failed\n";
             exit(1);
+        } else {
+            std::cerr << "Backend: seq no recovery success\n";
         }
     }
 }
@@ -45,10 +47,12 @@ void mnemosyne::Backend::SeqNumAdd(uint32_t group, const ndn::Name& producer, ui
     m_lastSeqNoBackup ++;
     if (m_lastSeqNoBackup == m_seqNoBackupFreq) { // backup
         auto backupPage = m_seqNoRecovery.encode();
+        backupPage.encode();
         std::string page((const char *)backupPage.wire(), backupPage.size());
-        if (m_storage->placeMetaData(SEQ_NO_BACKUP_KEY, page))
+        if (m_storage->placeMetaData(SEQ_NO_BACKUP_KEY, page)) {
+            std::cerr << "Backend: metadata backup write success\n";
             m_lastSeqNoBackup = 0;
-        else {
+        } else {
             std::cerr << "Backend: metadata backup write failed\n";
             exit(1);
         }

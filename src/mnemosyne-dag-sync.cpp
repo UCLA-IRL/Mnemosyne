@@ -114,8 +114,14 @@ std::list<Name> MnemosyneDagSync::listRecord(const std::string &prefix) const {
 
 void MnemosyneDagSync::onUpdate(const std::vector<ndn::svs::MissingDataInfo>& info) {
     for (const auto& stream : info) {
+        std::cerr << "Missing Data " << stream.nodeId << " " << stream.low << " " << stream.high << "\n";
         for (svs::SeqNo i = stream.low; i <= stream.high; i++) {
-            if (m_backend->isSeqNumIn(m_backend->DAG_SYNC_GROUP, stream.nodeId, i)) continue;
+            if (m_backend->isSeqNumIn(Backend::DAG_SYNC_GROUP, stream.nodeId, i)) {
+                NDN_LOG_INFO("Skipped in-backend item" << stream.nodeId << " " << i);
+                continue;
+            } else {
+                NDN_LOG_INFO("Fetching in-backend item" << stream.nodeId << " " << i);
+            }
             m_dagSync.fetchData(stream.nodeId, i, [nodeId=stream.nodeId, i, this](const Data& syncData){
                 if (syncData.getContentType() == tlv::Data) {
                     m_recordValidator->validate(Data(syncData.getContent().blockFromValue()), [nodeId, i, this](const Data& data){
@@ -147,7 +153,7 @@ void MnemosyneDagSync::addSelfRecord(const shared_ptr<Data> &data, svs::SeqNo se
     NDN_LOG_INFO("Add self record " << data->getFullName());
     m_backend->putRecord(data);
     m_selfLastName = data->getFullName();
-    m_backend->SeqNumAdd(m_backend->DAG_SYNC_GROUP, m_config.peerPrefix, seqId);
+    m_backend->SeqNumAdd(Backend::DAG_SYNC_GROUP, m_config.peerPrefix, seqId);
 }
 
 void MnemosyneDagSync::addReceivedRecord(const shared_ptr<Data>& recordData) {
@@ -181,7 +187,7 @@ void MnemosyneDagSync::verifyPreviousRecord(const Record& record, const Name& pr
     }
 
     //verification success
-    m_backend->SeqNumAdd(m_backend->DAG_SYNC_GROUP, producer, seqId);
+    m_backend->SeqNumAdd(Backend::DAG_SYNC_GROUP, producer, seqId);
 
     std::map<Name, std::pair<Name, svs::SeqNo>> waitingList;
     if (m_targetForWaitingRecords.count(record.getRecordFullName()) > 0) {

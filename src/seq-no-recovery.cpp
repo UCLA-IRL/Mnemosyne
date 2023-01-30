@@ -88,6 +88,7 @@ ndn::Block SeqNoRecovery::encode() const {
             groupBlock.push_back(name.wireEncode());
             groupBlock.push_back(segment.encode());
         }
+        block.push_back(groupBlock);
     }
     return block;
 }
