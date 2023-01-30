@@ -65,7 +65,8 @@ ReturnCode MnemosyneDagSync::createRecord(Record &record) {
 
     // randomly shuffle the tailing record list
     std::vector<Name> recordList;
-    for (const auto& i : m_lastNames) if (m_noPrevRecords.count(i) == 0) recordList.push_back(i);
+    for (const auto& i : m_lastNames) if (m_waitingRecords.count(i) == 0) recordList.push_back(i);
+    if (recordList.size() < m_config.precedingRecordNum) return ReturnCode::notEnoughTailingRecord();
     std::shuffle(recordList.begin(), recordList.end(), m_randomEngine);
 
     for (const auto &tailRecord : recordList) {
@@ -90,11 +91,10 @@ ReturnCode MnemosyneDagSync::createRecord(Record &record) {
     record.m_data = data;
     NDN_LOG_INFO("[MnemosyneDagSync::createRecord] Added a new record:" << data->getFullName().toUri());
 
-    // add new record into the ledger
-    addSelfRecord(data);
-
     //send sync interest
-    m_dagSync.publishData(data->wireEncode(), data->getFreshnessPeriod(), m_config.peerPrefix, tlv::Data);
+    auto seqId = m_dagSync.publishData(data->wireEncode(), data->getFreshnessPeriod(), m_config.peerPrefix, tlv::Data);
+    // add new record into the ledger
+    addSelfRecord(data, seqId);
     return ReturnCode::noError(data->getFullName().toUri());
 }
 
@@ -115,14 +115,15 @@ std::list<Name> MnemosyneDagSync::listRecord(const std::string &prefix) const {
 void MnemosyneDagSync::onUpdate(const std::vector<ndn::svs::MissingDataInfo>& info) {
     for (const auto& stream : info) {
         for (svs::SeqNo i = stream.low; i <= stream.high; i++) {
-            m_dagSync.fetchData(stream.nodeId, i, [&](const Data& syncData){
+            if (m_backend->isSeqNumIn(m_backend->DAG_SYNC_GROUP, stream.nodeId, i)) continue;
+            m_dagSync.fetchData(stream.nodeId, i, [nodeId=stream.nodeId, i, this](const Data& syncData){
                 if (syncData.getContentType() == tlv::Data) {
-                    m_recordValidator->validate(Data(syncData.getContent().blockFromValue()), [this](const Data& data){
+                    m_recordValidator->validate(Data(syncData.getContent().blockFromValue()), [nodeId, i, this](const Data& data){
                         auto receivedData = std::make_shared<Data>(data);
                         try {
                             Record receivedRecord(receivedData);
                             receivedRecord.checkPointerCount(m_config.precedingRecordNum);
-                            verifyPreviousRecord(receivedRecord);
+                            verifyPreviousRecord(receivedRecord, nodeId, i);
 
                             NDN_LOG_INFO("Received record " << receivedData->getFullName());
                             addReceivedRecord(receivedData);
@@ -142,10 +143,11 @@ void MnemosyneDagSync::onUpdate(const std::vector<ndn::svs::MissingDataInfo>& in
     }
 }
 
-void MnemosyneDagSync::addSelfRecord(const shared_ptr<Data> &data) {
+void MnemosyneDagSync::addSelfRecord(const shared_ptr<Data> &data, svs::SeqNo seqId) {
     NDN_LOG_INFO("Add self record " << data->getFullName());
     m_backend->putRecord(data);
     m_selfLastName = data->getFullName();
+    m_backend->SeqNumAdd(m_backend->DAG_SYNC_GROUP, m_config.peerPrefix, seqId);
 }
 
 void MnemosyneDagSync::addReceivedRecord(const shared_ptr<Data>& recordData) {
@@ -169,26 +171,31 @@ ndn::svs::SecurityOptions MnemosyneDagSync::getSecurityOption(KeyChain& keychain
     return option;
 }
 
-void MnemosyneDagSync::verifyPreviousRecord(const Record& record) {
+void MnemosyneDagSync::verifyPreviousRecord(const Record& record, const Name& producer, svs::SeqNo seqId) {
     for (const auto& i : record.getPointersFromHeader()) {
-        if (m_noPrevRecords.count(i) || !m_backend->getRecord(i)) {
-            m_waitingReferencedRecords.emplace(i, record.getRecordFullName());
-            m_noPrevRecords.emplace(record.getRecordFullName());
+        if (m_waitingRecords.count(i) || !m_backend->getRecord(i)) {
+            m_targetForWaitingRecords.emplace(i, record.getRecordFullName());
+            m_waitingRecords.emplace(record.getRecordFullName(), std::pair(producer, seqId));
             return;
         }
     }
 
-    std::list<Name> waitingList;
-    if (m_waitingReferencedRecords.count(record.getRecordFullName()) > 0) {
-        for (auto it = m_waitingReferencedRecords.find(record.getRecordFullName()); it->first == record.getRecordFullName(); m_waitingReferencedRecords.erase(it ++)) {
-            waitingList.push_back(it->second);
-            m_noPrevRecords.erase(it->second);
+    //verification success
+    m_backend->SeqNumAdd(m_backend->DAG_SYNC_GROUP, producer, seqId);
 
+    std::map<Name, std::pair<Name, svs::SeqNo>> waitingList;
+    if (m_targetForWaitingRecords.count(record.getRecordFullName()) > 0) {
+        for (auto it = m_targetForWaitingRecords.find(record.getRecordFullName());
+                it->first == record.getRecordFullName(); m_targetForWaitingRecords.erase(it ++)) {
+            auto record_it = m_waitingRecords.find(it->second);
+            if (record_it == m_waitingRecords.end()) continue;
+            waitingList.emplace(record_it->first, record_it->second);
+            m_waitingRecords.erase(record_it);
         }
     }
 
-    for (const auto& i : waitingList) {
-        verifyPreviousRecord(m_backend->getRecord(i));
+    for (const auto& [name, p] : waitingList) {
+        verifyPreviousRecord(m_backend->getRecord(name), p.first, p.second);
     }
 }
 
