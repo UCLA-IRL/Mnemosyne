@@ -26,7 +26,9 @@ set(MNEMOSYNE_LIB_SOURCE_FILES
         src/record.cpp
         src/config.cpp
         src/default-cert-manager.cpp
-        src/util.cpp)
+        src/util.cpp
+        src/seq-no-recovery.cpp
+        src/seq-no-recovery.h)
 # include
 include_directories(${NDN_CXX_INCLUDE_DIRS})
 include_directories(${NDN_SVS_INCLUDE_DIRS})
