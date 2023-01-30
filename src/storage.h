@@ -1,5 +1,5 @@
-#ifndef MNEMOSYNE_BACKEND_H_
-#define MNEMOSYNE_BACKEND_H_
+#ifndef MNEMOSYNE_STORAGE_H_
+#define MNEMOSYNE_STORAGE_H_
 
 #include <ndn-cxx/data.hpp>
 #include <leveldb/db.h>
@@ -7,12 +7,12 @@
 using namespace ndn;
 namespace mnemosyne {
 
-class Backend {
+class Storage {
   public:
-    Backend(const std::string &dbDir);
+    Storage(const std::string &dbDir);
 
   public:
-    ~Backend();
+    ~Storage();
 
     // @param the recordName must be a full name (i.e., containing explicit digest component)
     shared_ptr<Data>
@@ -27,10 +27,15 @@ class Backend {
     std::list<Name>
     listRecord(const Name &prefix) const;
 
+    bool placeMetaData(std::string key, const std::string& value);
+
+    std::optional<std::string> getMetaData(const std::string& key) const;
+
   private:
     leveldb::DB *m_db;
+    const char RECORD_PREFIX_CHAR = '/';
 };
 
 }  // namespace mnemosyne
 
-#endif  // MNEMOSYNE_BACKEND_H_
+#endif  // MNEMOSYNE_STORAGE_H_

@@ -1,4 +1,4 @@
-#include "mnemosyne/backend.hpp"
+#include "storage.h"
 #include <ndn-cxx/name.hpp>
 #include <iostream>
 
@@ -20,7 +20,7 @@ makeData(const std::string& name, const std::string& content)
 bool
 testBackEnd()
 {
-  Backend backend("/tmp/test.leveldb");
+  Storage backend("/tmp/test.leveldb");
   for (const auto &name : backend.listRecord("")) {
       backend.deleteRecord(name);
   }
@@ -38,7 +38,7 @@ testBackEnd()
 
 bool
 testBackEndList() {
-    Backend backend("/tmp/test-List.leveldb");
+    Storage backend("/tmp/test-List.leveldb");
     for (const auto &name : backend.listRecord("/")) {
         backend.deleteRecord(name);
     }
@@ -48,9 +48,10 @@ testBackEndList() {
         backend.putRecord(makeData("/mnemosyne/b/" + std::to_string(i), "content is " + std::to_string(i)));
     }
 
-    backend.putRecord(makeData("/mnemosyne/a", "content is "));
-    backend.putRecord(makeData("/mnemosyne/ab", "content is "));
-    backend.putRecord(makeData("/mnemosyne/b", "content is "));
+    //check if there are no preceding slash...
+    backend.putRecord(makeData("mnemosyne/a", "content is "));
+    backend.putRecord(makeData("mnemosyne/ab", "content is "));
+    backend.putRecord(makeData("mnemosyne/b", "content is "));
 
     assert(backend.listRecord(Name("/mnemosyne")).size() == 33);
     assert(backend.listRecord(Name("/mnemosyne/a")).size() == 11);
@@ -65,15 +66,27 @@ testBackEndList() {
     return true;
 }
 
-bool
-testNameGet()
-{
-  std::string name1 = "name1";
-  ndn::Name name2("/mnemosyne/name1/123");
-  if (name2.get(-2).toUri() == name1) {
+bool testNameGet() {
+    if (ndn::Name("").toUri() != "/") return false;
+    if (ndn::Name("a/b").toUri() != "/a/b") return false;
+
+    std::string name1 = "name1";
+    ndn::Name name2("/mnemosyne/name1/123");
+    if (name2.get(-2).toUri() == name1) {
+        return true;
+    }
+    return false;
+}
+
+bool testMetaDataStore() {
+    Storage backend("/tmp/test-List.leveldb");
+    if (backend.placeMetaData("/a", "abc")) return false;
+    if (!backend.placeMetaData("a", "abc")) return false;
+
+    if (!backend.getMetaData("a")) return false;
+    if (*backend.getMetaData("a") != "abc") return false;
+    if (backend.getMetaData("b")) return false;
     return true;
-  }
-  return false;
 }
 
 int
@@ -93,12 +106,19 @@ main(int argc, char** argv)
   else {
     std::cout << "testBackEndList with no errors" << std::endl;
   }
-  success = testNameGet();
-  if (!success) {
-    std::cout << "testNameGet failed" << std::endl;
-  }
-  else {
-    std::cout << "testNameGet with no errors" << std::endl;
-  }
+    success = testNameGet();
+    if (!success) {
+        std::cout << "testNameGet failed" << std::endl;
+    }
+    else {
+        std::cout << "testNameGet with no errors" << std::endl;
+    }
+    success = testMetaDataStore();
+    if (!success) {
+        std::cout << "testMetaDataStore failed" << std::endl;
+    }
+    else {
+        std::cout << "testMetaDataStore with no errors" << std::endl;
+    }
   return 0;
 }

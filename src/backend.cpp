@@ -1,73 +1,60 @@
-#include "mnemosyne/backend.hpp"
+//
+// Created by Tyler on 1/29/23.
+//
 
-#include <cassert>
+#include "backend.h"
+#include "storage.h"
 #include <iostream>
 
-namespace mnemosyne {
+const std::string mnemosyne::Backend::SEQ_NO_BACKUP_KEY = "SeqNoBackup";
 
-Backend::Backend(const std::string &dbDir) {
-    leveldb::Options options;
-    options.create_if_missing = true;
-    leveldb::Status status = leveldb::DB::Open(options, dbDir, &m_db);
-    if (!status.ok()) {
-        std::cerr << "Unable to open/create database " << dbDir << std::endl;
-        std::cerr << status.ToString() << std::endl;
-        BOOST_THROW_EXCEPTION(std::runtime_error("Unable to open/create database"));
+mnemosyne::Backend::Backend(const std::string &dbDir, uint32_t seqNoBackupFreq) :
+        m_storage(std::make_shared<Storage>(dbDir)),
+        m_seqNoBackupFreq(seqNoBackupFreq),
+        m_lastSeqNoBackup(0)
+{
+    //attempt recovery
+    auto page = m_storage->getMetaData(SEQ_NO_BACKUP_KEY);
+    if (page) {
+        ndn::Block block(make_span(reinterpret_cast<const uint8_t*>(page->data()), page->size()));
+        if(!m_seqNoRecovery.decode(block)) {
+            std::cerr << "Backend: seq no recovery failed\n";
+            exit(1);
+        }
     }
 }
 
-Backend::~Backend() {
-    delete m_db;
+shared_ptr<Data> mnemosyne::Backend::getRecord(const Name &recordName) const {
+    return m_storage->getRecord(recordName);
 }
 
-shared_ptr<Data>
-Backend::getRecord(const Name &recordName) const {
-    const auto &nameStr = recordName.toUri();
-    leveldb::Slice key = nameStr;
-    std::string value;
-    leveldb::Status s = m_db->Get(leveldb::ReadOptions(), key, &value);
-    if (!s.ok()) {
-        return nullptr;
-    } else {
-        ndn::Block block(make_span(reinterpret_cast<const uint8_t*>(value.data()), value.size()));
-        return make_shared<Data>(block);
+bool mnemosyne::Backend::putRecord(const shared_ptr<const Data> &recordData) {
+    return m_storage->putRecord(recordData);
+}
+
+void mnemosyne::Backend::deleteRecord(const Name &recordName) {
+    m_storage->deleteRecord(recordName);
+}
+
+std::list<Name> mnemosyne::Backend::listRecord(const Name &prefix) const {
+    return m_storage->listRecord(prefix);
+}
+
+void mnemosyne::Backend::SeqNumAdd(uint32_t group, const ndn::Name& producer, uint64_t val) {
+    m_seqNoRecovery.getStream(group, producer).add(val);
+    m_lastSeqNoBackup ++;
+    if (m_lastSeqNoBackup == m_seqNoBackupFreq) { // backup
+        auto backupPage = m_seqNoRecovery.encode();
+        std::string page((const char *)backupPage.wire(), backupPage.size());
+        if (m_storage->placeMetaData(SEQ_NO_BACKUP_KEY, page))
+            m_lastSeqNoBackup = 0;
+        else {
+            std::cerr << "Backend: metadata backup write failed\n";
+            exit(1);
+        }
     }
 }
 
-bool
-Backend::putRecord(const shared_ptr<const Data> &recordData) {
-    const auto &nameStr = recordData->getFullName().toUri();
-    leveldb::Slice key = nameStr;
-    auto recordBytes = recordData->wireEncode();
-    leveldb::Slice value((const char *) recordBytes.wire(), recordBytes.size());
-    leveldb::Status s = m_db->Put(leveldb::WriteOptions(), key, value);
-    if (!s.ok()) {
-        return false;
-    }
-    return true;
+bool mnemosyne::Backend::isSeqNumIn(uint32_t group, const ndn::Name& producer, uint64_t val) const {
+    return m_seqNoRecovery.getStream(group, producer).isIn(val);
 }
-
-void
-Backend::deleteRecord(const Name &recordName) {
-    const auto &nameStr = recordName.toUri();
-    leveldb::Slice key = nameStr;
-    leveldb::Status s = m_db->Delete(leveldb::WriteOptions(), key);
-    if (!s.ok()) {
-        std::cerr << "Unable to delete value from database, key: " << nameStr << std::endl;
-        std::cerr << s.ToString() << std::endl;
-    }
-}
-
-std::list<Name>
-Backend::listRecord(const Name &prefix) const {
-    std::list<Name> names;
-    leveldb::Iterator *it = m_db->NewIterator(leveldb::ReadOptions());
-    for (it->Seek(prefix.toUri()); it->Valid() && prefix.isPrefixOf(Name(it->key().ToString())); it->Next()) {
-        names.emplace_back(it->key().ToString());
-    }
-    assert(it->status().ok());  // Check for any errors found during the scan
-    delete it;
-    return std::move(names);
-}
-
-}  // namespace mnemosyne

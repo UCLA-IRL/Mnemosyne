@@ -38,6 +38,11 @@ class Config {
     time::milliseconds ancestorFetchTimeout = time::milliseconds(10000);
 
     /**
+     * Frequency of helper sequence number backup
+     */
+    uint32_t SeqNoBackupFreq = 10;
+
+    /**
      * The multicast prefix, under which an Interest can reach to all the peers in the same multicast group.
      */
     Name syncPrefix;

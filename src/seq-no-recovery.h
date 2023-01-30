@@ -18,7 +18,7 @@ class SeqNoRecovery {
       public:
         void add(uint64_t val);
 
-        bool isIn(uint64_t val);
+        bool isIn(uint64_t val) const;
 
         ndn::Block encode() const;
 
@@ -56,10 +56,7 @@ class SeqNoRecovery {
 
     static const SegmentAccumulator EMPTY_ACCUMULATOR;
   public:
-    static const uint32_t RECOVERY_TLV_TYPE = 167;
-    static const uint32_t DAG_SYNC_GROUP = 161;
-    static const uint32_t MNEMOSYNE_PS_GROUP = 163;
-    static const uint32_t LISTEN_GROUP = 165;
+    static const uint32_t RECOVERY_TLV_TYPE = 161;
 };
 } //namespace mnemosyne
 

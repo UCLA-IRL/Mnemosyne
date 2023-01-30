@@ -6,7 +6,11 @@
 
 #include <ndn-cxx/encoding/block-helpers.hpp>
 
+
 namespace mnemosyne {
+
+const SeqNoRecovery::SegmentAccumulator SeqNoRecovery::EMPTY_ACCUMULATOR;
+
 void SeqNoRecovery::SegmentAccumulator::add(uint64_t val) {
     /*if (right_it == m_segments.end()) {
         printf("No Right\n");
@@ -41,7 +45,7 @@ void SeqNoRecovery::SegmentAccumulator::add(uint64_t val) {
     }
 }
 
-bool SeqNoRecovery::SegmentAccumulator::isIn(uint64_t val) {
+bool SeqNoRecovery::SegmentAccumulator::isIn(uint64_t val) const {
     auto it = m_segments.lower_bound(val);
     if (it != m_segments.end() && it->first == val) return true;
     if (it == m_segments.begin()) return false;

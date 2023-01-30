@@ -1,4 +1,6 @@
 #include "mnemosyne/mnemosyne-dag-sync.hpp"
+
+#include "backend.h"
 #include "util.hpp"
 
 #include <ndn-cxx/encoding/block-helpers.hpp>
@@ -23,7 +25,7 @@ MnemosyneDagSync::MnemosyneDagSync(const Config &config,
                      std::shared_ptr<ndn::security::Validator> recordValidator)
         : m_config(config)
         , m_keychain(keychain)
-        , m_backend(config.databasePath)
+        , m_backend(std::make_unique<Backend>(config.databasePath, m_config.SeqNoBackupFreq))
         , m_recordValidator(recordValidator)
         , m_dagSync(config.syncPrefix, config.peerPrefix, network, [&](const auto& i){onUpdate(i);}, getSecurityOption(keychain, recordValidator, config.peerPrefix))
         , m_randomEngine(std::random_device()())
@@ -46,7 +48,7 @@ MnemosyneDagSync::MnemosyneDagSync(const Config &config,
         data->setContent(contentBlock);
         m_keychain.sign(*data, signingWithSha256());
         genesisRecord.m_data = data;
-        m_backend.putRecord(data);
+        m_backend->putRecord(data);
         m_lastNames.push_back(genesisRecord.getRecordFullName());
     }
     NDN_LOG_INFO("STEP 2" << std::endl
@@ -98,16 +100,16 @@ ReturnCode MnemosyneDagSync::createRecord(Record &record) {
 
 optional<Record> MnemosyneDagSync::getRecord(const std::string &recordName) const {
     NDN_LOG_DEBUG("getRecord Called on " << recordName);
-    return m_backend.getRecord(recordName);
+    return m_backend->getRecord(recordName);
 }
 
 bool MnemosyneDagSync::hasRecord(const std::string &recordName) const {
-    auto dataPtr = m_backend.getRecord(Name(recordName));
+    auto dataPtr = m_backend->getRecord(Name(recordName));
     return dataPtr != nullptr;
 }
 
 std::list<Name> MnemosyneDagSync::listRecord(const std::string &prefix) const {
-    return m_backend.listRecord(Name(prefix));
+    return m_backend->listRecord(Name(prefix));
 }
 
 void MnemosyneDagSync::onUpdate(const std::vector<ndn::svs::MissingDataInfo>& info) {
@@ -142,13 +144,13 @@ void MnemosyneDagSync::onUpdate(const std::vector<ndn::svs::MissingDataInfo>& in
 
 void MnemosyneDagSync::addSelfRecord(const shared_ptr<Data> &data) {
     NDN_LOG_INFO("Add self record " << data->getFullName());
-    m_backend.putRecord(data);
+    m_backend->putRecord(data);
     m_selfLastName = data->getFullName();
 }
 
 void MnemosyneDagSync::addReceivedRecord(const shared_ptr<Data>& recordData) {
     NDN_LOG_INFO("Add received record " << recordData->getFullName());
-    m_backend.putRecord(recordData);
+    m_backend->putRecord(recordData);
     m_lastNames[m_lastNameTops] = recordData->getFullName();
     m_lastNameTops = (m_lastNameTops + 1) % m_lastNames.size();
 }
@@ -169,7 +171,7 @@ ndn::svs::SecurityOptions MnemosyneDagSync::getSecurityOption(KeyChain& keychain
 
 void MnemosyneDagSync::verifyPreviousRecord(const Record& record) {
     for (const auto& i : record.getPointersFromHeader()) {
-        if (m_noPrevRecords.count(i) || !m_backend.getRecord(i)) {
+        if (m_noPrevRecords.count(i) || !m_backend->getRecord(i)) {
             m_waitingReferencedRecords.emplace(i, record.getRecordFullName());
             m_noPrevRecords.emplace(record.getRecordFullName());
             return;
@@ -186,7 +188,7 @@ void MnemosyneDagSync::verifyPreviousRecord(const Record& record) {
     }
 
     for (const auto& i : waitingList) {
-        verifyPreviousRecord(m_backend.getRecord(i));
+        verifyPreviousRecord(m_backend->getRecord(i));
     }
 }
 

@@ -5,7 +5,6 @@
 #include "record.hpp"
 #include "config.hpp"
 #include "return-code.hpp"
-#include "backend.hpp"
 #include <ndn-cxx/security/key-chain.hpp>
 #include <ndn-cxx/face.hpp>
 #include <ndn-cxx/util/scheduler.hpp>
@@ -17,6 +16,8 @@
 
 using namespace ndn;
 namespace mnemosyne {
+
+class Backend;
 
 class MnemosyneDagSync {
   public:
@@ -75,7 +76,7 @@ class MnemosyneDagSync {
 
   protected:
     const Config m_config;
-    Backend m_backend;
+    std::unique_ptr<Backend> m_backend;
     security::KeyChain &m_keychain;
     svs::SVSync m_dagSync;
     std::shared_ptr<ndn::security::Validator> m_recordValidator;

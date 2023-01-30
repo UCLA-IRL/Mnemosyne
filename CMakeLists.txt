@@ -21,6 +21,9 @@ find_package(leveldb REQUIRED)
 # files
 set(MNEMOSYNE_LIB_SOURCE_FILES
         src/backend.cpp
+        src/backend.h
+        src/storage.cpp
+        src/storage.h
         src/mnemosyne-dag-sync.cpp
         src/mnemosyne.cpp
         src/record.cpp
