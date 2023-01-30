@@ -68,11 +68,11 @@ class MnemosyneDagSync {
   private:
     void onUpdate(const std::vector<ndn::svs::MissingDataInfo>& info);
 
-    void addReceivedRecord(const shared_ptr<Data>& recordData);
+    void addReceivedRecord(const shared_ptr<const Data>& recordData);
 
     static ndn::svs::SecurityOptions getSecurityOption(KeyChain& keychain, shared_ptr<ndn::security::Validator> recordValidator, Name peerPrefix);
 
-    void verifyPreviousRecord(const Record& record, const Name& producer, svs::SeqNo seqId);
+    void verifyPreviousRecord(std::unique_ptr<Record> record, const Name& producer, svs::SeqNo seqId);
 
   protected:
     const Config m_config;
@@ -86,7 +86,7 @@ class MnemosyneDagSync {
     unsigned int m_lastNameTops;
     Name m_selfLastName;
 
-    std::unordered_map<Name, std::pair<Name, svs::SeqNo>> m_waitingRecords;
+    std::unordered_map<Name, std::tuple<std::unique_ptr<Record>, Name, svs::SeqNo>> m_waitingRecords;
     std::multimap<Name, Name> m_targetForWaitingRecords;
 
     std::mt19937_64 m_randomEngine;

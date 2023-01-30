@@ -127,16 +127,9 @@ void MnemosyneDagSync::onUpdate(const std::vector<ndn::svs::MissingDataInfo>& in
                     m_recordValidator->validate(Data(syncData.getContent().blockFromValue()), [nodeId, i, this](const Data& data){
                         auto receivedData = std::make_shared<Data>(data);
                         try {
-                            Record receivedRecord(receivedData);
-                            receivedRecord.checkPointerCount(m_config.precedingRecordNum);
-                            verifyPreviousRecord(receivedRecord, nodeId, i);
-
-                            NDN_LOG_INFO("Received record " << receivedData->getFullName());
-                            addReceivedRecord(receivedData);
-
-                            if (m_onRecordCallback) {
-                                m_onRecordCallback(receivedRecord);
-                            }
+                            auto receivedRecord = make_unique<Record>(receivedData);
+                            receivedRecord->checkPointerCount(m_config.precedingRecordNum);
+                            verifyPreviousRecord(std::move(receivedRecord), nodeId, i);
                         } catch (const std::exception& e) {
                             NDN_LOG_ERROR("bad record received" << receivedData->getFullName() << ": " << e.what());
                         }
@@ -156,7 +149,7 @@ void MnemosyneDagSync::addSelfRecord(const shared_ptr<Data> &data, svs::SeqNo se
     m_backend->SeqNumAdd(Backend::DAG_SYNC_GROUP, m_config.peerPrefix, seqId);
 }
 
-void MnemosyneDagSync::addReceivedRecord(const shared_ptr<Data>& recordData) {
+void MnemosyneDagSync::addReceivedRecord(const shared_ptr<const Data>& recordData) {
     NDN_LOG_INFO("Add received record " << recordData->getFullName());
     m_backend->putRecord(recordData);
     m_lastNames[m_lastNameTops] = recordData->getFullName();
@@ -177,31 +170,38 @@ ndn::svs::SecurityOptions MnemosyneDagSync::getSecurityOption(KeyChain& keychain
     return option;
 }
 
-void MnemosyneDagSync::verifyPreviousRecord(const Record& record, const Name& producer, svs::SeqNo seqId) {
-    for (const auto& i : record.getPointersFromHeader()) {
-        if (m_waitingRecords.count(i) || !m_backend->getRecord(i)) {
-            m_targetForWaitingRecords.emplace(i, record.getRecordFullName());
-            m_waitingRecords.emplace(record.getRecordFullName(), std::pair(producer, seqId));
+void MnemosyneDagSync::verifyPreviousRecord(std::unique_ptr<Record> record, const Name& producer, svs::SeqNo seqId) {
+    auto recordName = record->getRecordFullName();
+    for (const auto& i : record->getPointersFromHeader()) {
+        if (m_waitingRecords.count(i) || !m_backend->getRecord(i)) { //verification failed
+            m_targetForWaitingRecords.emplace(i, recordName);
+            m_waitingRecords.emplace(recordName, std::tuple(std::move(record), producer, seqId));
             return;
         }
     }
 
     //verification success
     m_backend->SeqNumAdd(Backend::DAG_SYNC_GROUP, producer, seqId);
+    NDN_LOG_INFO("Received record " << record->m_data->getFullName());
+    addReceivedRecord(record->m_data);
 
-    std::map<Name, std::pair<Name, svs::SeqNo>> waitingList;
-    if (m_targetForWaitingRecords.count(record.getRecordFullName()) > 0) {
-        for (auto it = m_targetForWaitingRecords.find(record.getRecordFullName());
-                it->first == record.getRecordFullName(); m_targetForWaitingRecords.erase(it ++)) {
+    if (m_onRecordCallback) {
+        m_onRecordCallback(*record);
+    }
+
+    std::map<Name, std::tuple<std::unique_ptr<Record>, Name, svs::SeqNo>> waitingList;
+    if (m_targetForWaitingRecords.count(recordName) > 0) {
+        for (auto it = m_targetForWaitingRecords.find(recordName);
+                it->first == recordName; m_targetForWaitingRecords.erase(it ++)) {
             auto record_it = m_waitingRecords.find(it->second);
             if (record_it == m_waitingRecords.end()) continue;
-            waitingList.emplace(record_it->first, record_it->second);
+            waitingList.emplace(record_it->first, std::move(record_it->second));
             m_waitingRecords.erase(record_it);
         }
     }
 
-    for (const auto& [name, p] : waitingList) {
-        verifyPreviousRecord(m_backend->getRecord(name), p.first, p.second);
+    for (auto& [name, p] : waitingList) {
+        verifyPreviousRecord(std::move(std::get<0>(p)), std::get<1>(p), std::get<2>(p));
     }
 }
 
