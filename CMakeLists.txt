@@ -28,7 +28,6 @@ set(MNEMOSYNE_LIB_SOURCE_FILES
         src/mnemosyne.cpp
         src/record.cpp
         src/config.cpp
-        src/default-cert-manager.cpp
         src/util.cpp
         src/seq-no-recovery.cpp
         src/seq-no-recovery.h)
