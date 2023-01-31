@@ -33,6 +33,8 @@ class Backend {
 
     bool isSeqNumIn(uint32_t group, const ndn::Name& producer, uint64_t val) const;
 
+    std::optional<uint64_t> SeqNumLastContinuous(uint32_t group, const ndn::Name& producer, uint64_t start) const;
+
   private:
     std::shared_ptr<Storage> m_storage;
     SeqNoRecovery m_seqNoRecovery;

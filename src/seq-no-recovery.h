@@ -20,6 +20,8 @@ class SeqNoRecovery {
 
         bool isIn(uint64_t val) const;
 
+        std::optional<uint64_t> lastContinuous(uint64_t start) const;
+
         ndn::Block encode() const;
 
         bool decode(const ndn::Block& block);

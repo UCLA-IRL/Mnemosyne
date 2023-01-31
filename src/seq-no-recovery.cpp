@@ -46,11 +46,16 @@ void SeqNoRecovery::SegmentAccumulator::add(uint64_t val) {
 }
 
 bool SeqNoRecovery::SegmentAccumulator::isIn(uint64_t val) const {
-    auto it = m_segments.lower_bound(val);
-    if (it != m_segments.end() && it->first == val) return true;
-    if (it == m_segments.begin()) return false;
+    return lastContinuous(val).has_value();
+}
+
+std::optional<uint64_t> SeqNoRecovery::SegmentAccumulator::lastContinuous(uint64_t start) const {
+    auto it = m_segments.lower_bound(start);
+    if (it != m_segments.end() && it->first == start) return it->second;
+    if (it == m_segments.begin()) return std::nullopt;
     it --;
-    return it->second >= val;
+    if (it->second >= start) return it->second;
+    else return std::nullopt;
 }
 
 ndn::Block SeqNoRecovery::SegmentAccumulator::encode() const {

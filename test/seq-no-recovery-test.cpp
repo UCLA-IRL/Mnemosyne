@@ -24,10 +24,12 @@ bool accumlator_test() {
     if (b.elements_size() != 4) return false;
     if (acc.isIn(0) || !acc.isIn(1) || !acc.isIn(2) || !acc.isIn(3) ||
         acc.isIn(4) || !acc.isIn(5) || !acc.isIn(6) || !acc.isIn(7) || acc.isIn(8)) return false;
+    if (acc.lastContinuous(1) != 3 || acc.lastContinuous(5) != 7) return false;
     acc.add(4);
     b = acc.encode();
     b.parse();
     if (b.elements_size() != 2) return false;
+    if (acc.lastContinuous(1) != 7) return false;
     return true;
 }
 

@@ -62,3 +62,7 @@ void mnemosyne::Backend::SeqNumAdd(uint32_t group, const ndn::Name& producer, ui
 bool mnemosyne::Backend::isSeqNumIn(uint32_t group, const ndn::Name& producer, uint64_t val) const {
     return m_seqNoRecovery.getStream(group, producer).isIn(val);
 }
+
+std::optional<uint64_t> mnemosyne::Backend::SeqNumLastContinuous(uint32_t group, const Name &producer, uint64_t start) const {
+    return m_seqNoRecovery.getStream(group, producer).lastContinuous(start);
+}

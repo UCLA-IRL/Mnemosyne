@@ -38,6 +38,13 @@ MnemosyneDagSync::MnemosyneDagSync(const Config &config,
         NDN_THROW(std::runtime_error("Bad config"));
     }
 
+    auto restored_seqNo = m_backend->SeqNumLastContinuous(Backend::DAG_SYNC_GROUP, config.peerPrefix, m_dagSync.getCore().getSeqNo() + 1);
+    if (restored_seqNo) {
+        m_dagSync.getCore().updateSeqNo(restored_seqNo.value());
+        NDN_LOG_INFO("STEP 1" << std::endl
+                              << "- Restored sequence id to " << restored_seqNo.value() << " in the Mnemosyne Dag Sync");
+    }
+
     //****STEP 2****
     // Make the genesis data
     for (int i = 0; i < m_config.numGenesisBlock; i++) {
@@ -116,8 +123,10 @@ void MnemosyneDagSync::onUpdate(const std::vector<ndn::svs::MissingDataInfo>& in
     for (const auto& stream : info) {
         std::cerr << "Missing Data " << stream.nodeId << " " << stream.low << " " << stream.high << "\n";
         for (svs::SeqNo i = stream.low; i <= stream.high; i++) {
-            if (m_backend->isSeqNumIn(Backend::DAG_SYNC_GROUP, stream.nodeId, i)) {
+            auto lastNo = m_backend->SeqNumLastContinuous(Backend::DAG_SYNC_GROUP, stream.nodeId, i);
+            if (lastNo.has_value()) {
                 NDN_LOG_INFO("Skipped in-backend item" << stream.nodeId << " " << i);
+                i = lastNo.value();
                 continue;
             } else {
                 NDN_LOG_INFO("Fetching in-backend item" << stream.nodeId << " " << i);
