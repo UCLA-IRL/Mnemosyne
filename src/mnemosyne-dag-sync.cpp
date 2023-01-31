@@ -1,6 +1,7 @@
 #include "mnemosyne/mnemosyne-dag-sync.hpp"
 
 #include "backend/backend.h"
+#include "dag-reference-checker.h"
 #include "util.hpp"
 
 #include <ndn-cxx/encoding/block-helpers.hpp>
@@ -25,9 +26,13 @@ MnemosyneDagSync::MnemosyneDagSync(const Config &config,
                      std::shared_ptr<ndn::security::Validator> recordValidator)
         : m_config(config)
         , m_keychain(keychain)
-        , m_backend(std::make_unique<Backend>(config.databasePath, m_config.SeqNoBackupFreq))
+        , m_backend(std::make_shared<Backend>(config.databasePath, m_config.SeqNoBackupFreq))
+        , m_dagReferenceChecker(std::make_unique<DagReferenceChecker>(m_backend,
+                                std::bind(&MnemosyneDagSync::addReceivedRecord, this, _1, _2, _3)))
         , m_recordValidator(recordValidator)
-        , m_dagSync(config.syncPrefix, config.peerPrefix, network, [&](const auto& i){onUpdate(i);}, getSecurityOption(keychain, recordValidator, config.peerPrefix))
+        , m_dagSync(config.syncPrefix, config.peerPrefix, network,
+                    [&](const auto& i){onUpdate(i);},
+                    getSecurityOption(keychain, recordValidator, config.peerPrefix))
         , m_randomEngine(std::random_device()())
         , m_lastNameTops(0)
 {
@@ -72,7 +77,7 @@ ReturnCode MnemosyneDagSync::createRecord(Record &record) {
 
     // randomly shuffle the tailing record list
     std::vector<Name> recordList;
-    for (const auto& i : m_lastNames) if (m_waitingRecords.count(i) == 0) recordList.push_back(i);
+    for (const auto& i : m_lastNames) recordList.push_back(i);
     if (recordList.size() < m_config.precedingRecordNum) return ReturnCode::notEnoughTailingRecord();
     std::shuffle(recordList.begin(), recordList.end(), m_randomEngine);
 
@@ -138,7 +143,7 @@ void MnemosyneDagSync::onUpdate(const std::vector<ndn::svs::MissingDataInfo>& in
                         try {
                             auto receivedRecord = make_unique<Record>(receivedData);
                             receivedRecord->checkPointerCount(m_config.precedingRecordNum);
-                            verifyPreviousRecord(std::move(receivedRecord), nodeId, i);
+                            m_dagReferenceChecker->addRecord(std::move(receivedRecord), nodeId, i);
                         } catch (const std::exception& e) {
                             NDN_LOG_ERROR("bad record received" << receivedData->getFullName() << ": " << e.what());
                         }
@@ -158,11 +163,17 @@ void MnemosyneDagSync::addSelfRecord(const shared_ptr<Data> &data, svs::SeqNo se
     m_backend->SeqNumAdd(Backend::DAG_SYNC_GROUP, m_config.peerPrefix, seqId);
 }
 
-void MnemosyneDagSync::addReceivedRecord(const shared_ptr<const Data>& recordData) {
-    NDN_LOG_INFO("Add received record " << recordData->getFullName());
+void MnemosyneDagSync::addReceivedRecord(std::unique_ptr<Record> record, const Name& producer, svs::SeqNo seqId) {
+    NDN_LOG_INFO("Add received record " << record->getRecordFullName());
+    const shared_ptr<const Data>& recordData = record->m_data;
+    m_backend->SeqNumAdd(Backend::DAG_SYNC_GROUP, producer, seqId);
     m_backend->putRecord(recordData);
     m_lastNames[m_lastNameTops] = recordData->getFullName();
     m_lastNameTops = (m_lastNameTops + 1) % m_lastNames.size();
+
+    if (m_onRecordCallback) {
+        m_onRecordCallback(*record);
+    }
 }
 
 const Name &MnemosyneDagSync::getPeerPrefix() const {
@@ -178,41 +189,5 @@ ndn::svs::SecurityOptions MnemosyneDagSync::getSecurityOption(KeyChain& keychain
     option.pubSigner = std::make_shared<ndn::svs::BaseSigner>();
     return option;
 }
-
-void MnemosyneDagSync::verifyPreviousRecord(std::unique_ptr<Record> record, const Name& producer, svs::SeqNo seqId) {
-    auto recordName = record->getRecordFullName();
-    for (const auto& i : record->getPointersFromHeader()) {
-        if (m_waitingRecords.count(i) || !m_backend->getRecord(i)) { //verification failed
-            m_targetForWaitingRecords.emplace(i, recordName);
-            m_waitingRecords.emplace(recordName, std::tuple(std::move(record), producer, seqId));
-            return;
-        }
-    }
-
-    //verification success
-    m_backend->SeqNumAdd(Backend::DAG_SYNC_GROUP, producer, seqId);
-    NDN_LOG_INFO("Received record " << record->m_data->getFullName());
-    addReceivedRecord(record->m_data);
-
-    if (m_onRecordCallback) {
-        m_onRecordCallback(*record);
-    }
-
-    std::map<Name, std::tuple<std::unique_ptr<Record>, Name, svs::SeqNo>> waitingList;
-    if (m_targetForWaitingRecords.count(recordName) > 0) {
-        for (auto it = m_targetForWaitingRecords.find(recordName);
-                it->first == recordName; m_targetForWaitingRecords.erase(it ++)) {
-            auto record_it = m_waitingRecords.find(it->second);
-            if (record_it == m_waitingRecords.end()) continue;
-            waitingList.emplace(record_it->first, std::move(record_it->second));
-            m_waitingRecords.erase(record_it);
-        }
-    }
-
-    for (auto& [name, p] : waitingList) {
-        verifyPreviousRecord(std::move(std::get<0>(p)), std::get<1>(p), std::get<2>(p));
-    }
-}
-
 
 }  // namespace mnemosyne

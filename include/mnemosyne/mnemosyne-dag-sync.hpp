@@ -18,6 +18,7 @@ using namespace ndn;
 namespace mnemosyne {
 
 class Backend;
+class DagReferenceChecker;
 
 class MnemosyneDagSync {
   public:
@@ -68,15 +69,14 @@ class MnemosyneDagSync {
   private:
     void onUpdate(const std::vector<ndn::svs::MissingDataInfo>& info);
 
-    void addReceivedRecord(const shared_ptr<const Data>& recordData);
+    void addReceivedRecord(std::unique_ptr<Record> record, const Name& producer, svs::SeqNo seqId);
 
     static ndn::svs::SecurityOptions getSecurityOption(KeyChain& keychain, shared_ptr<ndn::security::Validator> recordValidator, Name peerPrefix);
 
-    void verifyPreviousRecord(std::unique_ptr<Record> record, const Name& producer, svs::SeqNo seqId);
-
   protected:
     const Config m_config;
-    std::unique_ptr<Backend> m_backend;
+    std::shared_ptr<Backend> m_backend;
+    std::unique_ptr<DagReferenceChecker> m_dagReferenceChecker;
     security::KeyChain &m_keychain;
     svs::SVSync m_dagSync;
     std::shared_ptr<ndn::security::Validator> m_recordValidator;
@@ -86,8 +86,6 @@ class MnemosyneDagSync {
     unsigned int m_lastNameTops;
     Name m_selfLastName;
 
-    std::unordered_map<Name, std::tuple<std::unique_ptr<Record>, Name, svs::SeqNo>> m_waitingRecords;
-    std::multimap<Name, Name> m_targetForWaitingRecords;
 
     std::mt19937_64 m_randomEngine;
 
