@@ -1,6 +1,6 @@
 #include "mnemosyne/mnemosyne-dag-sync.hpp"
 
-#include "backend.h"
+#include "backend/backend.h"
 #include "util.hpp"
 
 #include <ndn-cxx/encoding/block-helpers.hpp>

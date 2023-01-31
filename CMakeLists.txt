@@ -20,17 +20,17 @@ find_package(leveldb REQUIRED)
 
 # files
 set(MNEMOSYNE_LIB_SOURCE_FILES
-        src/backend.cpp
-        src/backend.h
-        src/storage.cpp
-        src/storage.h
+        src/backend/backend.cpp
+        src/backend/backend.h
+        src/backend/storage.cpp
+        src/backend/storage.h
         src/mnemosyne-dag-sync.cpp
         src/mnemosyne.cpp
         src/record.cpp
         src/config.cpp
         src/util.cpp
-        src/seq-no-recovery.cpp
-        src/seq-no-recovery.h)
+        src/backend/seq-no-recovery.cpp
+        src/backend/seq-no-recovery.h)
 # include
 include_directories(${NDN_CXX_INCLUDE_DIRS})
 include_directories(${NDN_SVS_INCLUDE_DIRS})
