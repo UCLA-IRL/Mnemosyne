@@ -6,7 +6,7 @@
 
 #include <ndn-cxx/util/logger.hpp>
 #include <ndn-cxx/util/logging.hpp>
-NDN_LOG_INIT(mnemosyne.dagsync.impl);
+NDN_LOG_INIT(mnemosyne.dagsync.refChecker);
 
 using namespace ndn;
 namespace mnemosyne {

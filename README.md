@@ -39,4 +39,7 @@ ndnsec key-gen -t e /hydra/test-logger | ndnsec cert-gen -s /mnemosyne - > test-
 ./build/app/mnemosyne-logger -l /mnemosyne/a
 ./build/app/mnemosyne-logger -l /mnemosyne/b
 ./build/test/mnemosyne-test-client -c /hydra/test-logger
+
+# If re-running, you may need to erase content-store in local NFD
+nfdc cs erase /
 ```
