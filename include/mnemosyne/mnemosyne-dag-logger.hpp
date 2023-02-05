@@ -1,11 +1,12 @@
 #ifndef MNEMOSYNE_MNEMOSYNE_DAG_SYNC_H_
 #define MNEMOSYNE_MNEMOSYNE_DAG_SYNC_H_
 
-#include <ndn-svs/svsync.hpp>
 #include "record.hpp"
 #include "config.hpp"
 #include "return-code.hpp"
+#include <ndn-svs/svsync-shared.hpp>
 #include <ndn-cxx/security/key-chain.hpp>
+#include <ndn-cxx/security/validator.hpp>
 #include <ndn-cxx/face.hpp>
 #include <ndn-cxx/util/scheduler.hpp>
 #include <ndn-cxx/util/io.hpp>
@@ -20,41 +21,45 @@ namespace mnemosyne {
 class Backend;
 class DagReferenceChecker;
 
-class MnemosyneDagSync {
+namespace dag {
+class RecordSync;
+}
+
+class MnemosyneDagLogger {
   public:
     /**
-   * Initialize a MnemosyneDagSync instance from the config.
+   * Initialize a MnemosyneDagLogger instance from the config.
    * @p config, input, the configuration of multicast prefix, peer prefix, and settings of Dledger behavior
    * @p keychain, input, the local NDN keychain instance
    * @p face, input, the localhost NDN face to send/receive NDN packets.
    */
-    MnemosyneDagSync(const Config &config, security::KeyChain &keychain, Face &network, std::shared_ptr<ndn::security::Validator> m_recordValidator);
+    MnemosyneDagLogger(const Config &config, security::KeyChain &keychain, Face &network, std::shared_ptr<ndn::security::Validator> m_recordValidator);
 
-    virtual ~MnemosyneDagSync();
+    virtual ~MnemosyneDagLogger();
 
     /**
-     * Create a new record to the MnemosyneDagSync.
+     * Create a new record to the MnemosyneDagLogger.
      * @p record, input, a record instance which contains the record payload
      */
     virtual ReturnCode
     createRecord(Record &record);
 
     /**
-     * Get an existing record from the MnemosyneDagSync.
+     * Get an existing record from the MnemosyneDagLogger.
      * @p recordName, input, the name of the record, which is an NDN full name (i.e., containing ImplicitSha256DigestComponent component)
      */
     virtual optional<Record>
     getRecord(const std::string &recordName) const;
 
     /**
-     * Check whether the record exists in the MnemosyneDagSync.
+     * Check whether the record exists in the MnemosyneDagLogger.
      * @p recordName, input, the name of the record, which is an NDN full name (i.e., containing ImplicitSha256DigestComponent component)
      */
     virtual bool
     hasRecord(const std::string &recordName) const;
 
     /**
-      * list the record exists in the MnemosyneDagSync.
+      * list the record exists in the MnemosyneDagLogger.
       * @p recordName, input, the name of the record, which is an NDN name prefix.
       */
     virtual std::list<Name>
@@ -74,22 +79,21 @@ class MnemosyneDagSync {
     static ndn::svs::SecurityOptions getSecurityOption(KeyChain& keychain, shared_ptr<ndn::security::Validator> recordValidator, Name peerPrefix);
 
   protected:
+    uint64_t m_KnownSelfSeqId;
     const Config m_config;
     std::shared_ptr<Backend> m_backend;
     std::unique_ptr<DagReferenceChecker> m_dagReferenceChecker;
     security::KeyChain &m_keychain;
-    svs::SVSync m_dagSync;
-    std::shared_ptr<ndn::security::Validator> m_recordValidator;
+    std::unique_ptr<mnemosyne::dag::RecordSync> m_dagSync;
     std::function<void(const Record&)> m_onRecordCallback;
 
-    std::vector<Name> m_lastNames;
-    unsigned int m_lastNameTops;
-    Name m_selfLastName;
-
+    std::unordered_map<Name, Name> m_lastRecordInChains;
 
     std::mt19937_64 m_randomEngine;
 
-    void addSelfRecord(const shared_ptr<Data> &data, svs::SeqNo seqId);
+    void addPublicGenesisRecord();
+
+    void restoreRecordSyncVersionVector();
 };
 
 } // namespace mnemosyne

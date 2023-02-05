@@ -9,43 +9,35 @@
 
 using namespace ndn;
 namespace mnemosyne {
-enum RecordType {
-  BASE_RECORD = 0,
-  GENERIC_RECORD = 1,
-  CERTIFICATE_RECORD = 2,
-  REVOCATION_RECORD = 3,
-  GENESIS_RECORD = 4,
-};
 
 /**
  * The record.
- * Record Name: /<producer-prefix>/RECORD/<event-name>
+ * Record Name: /<producer-prefix>/RECORD/<seq-id>
  */
 class Record {
+  public:
+    //Name related functions
+    static bool isRecordName(const Name& recordName);
+    static bool isGenesisRecord(const Name& recordName);
+    static Name getProducerPrefix(const Name& recordName);
+    static uint64_t getRecordSeqId(const Name& recordName);
+    static Name getRecordName(Name producerName, const uint64_t seq_id);
+    static Name getGenesisRecordFullName(const Name& recordName);
   public: // used for preparing a new record before appending it into the DLedger
     Record() = default;
 
     /**
      * Construct a new record.
-     * @p type, input, the type of the record.
      * @p identifier, input, the unique identifer of the record.
      */
-    Record(RecordType type, const std::string& identifer);
-
-    /**
-     * Construct a new record.
-     * @p identifier, input, the unique identifer of the record.
-     */
-    Record(Name recordName);
-    Record(const Name &producerName, const Data &eventItem);
+    Record(const Data &eventItem, Name eventProducer, uint64_t seqId);
 
     /**
      * Add a new record payload item into the record.
      * @note This function should only be used to generate a record before adding it to the ledger.
      * @p recordItem, input, the record payload to add.
      */
-    void
-    setContentItem(const Block &contentItem);
+    void setContentData(const Data &contentItem);
 
     /**
      * Get the NDN Data full name of the record.
@@ -58,22 +50,10 @@ class Record {
     Name
     getRecordFullName() const;
 
-    const Name& getRecordName() const;
-
-    /**
-      * Get the record unique identifier of the record.
-      */
-    Name
-    getEventName() const;
-
     /**
      * Get record payload.
      */
-    const Block &
-    getContentItem() const;
-    
-    const RecordType &
-    getType() const;
+    const optional<Data> & getContentData() const;
 
     /**
      * Check whether the record body is empty or not.
@@ -85,7 +65,7 @@ class Record {
     /**
      * @note This constructor is supposed to be used by the Mnemosyne class only
      */
-    Record(const std::shared_ptr<Data> &data);
+    Record(const std::shared_ptr<const Data> &data);
 
     /**
      * @note This constructor is supposed to be used by the Mnemosyne class only
@@ -112,7 +92,7 @@ class Record {
      * @note This function is supposed to be used by the DLedger class only
      */
     void
-    checkPointerCount(int numPointers) const;
+    checkPointerCount(uint32_t numPointers) const;
 
     /**
      * Encode the record header and body into the block.
@@ -121,17 +101,12 @@ class Record {
     void
     wireEncode(Block &block) const;
 
-    Name
-    getProducerPrefix() const;
-
-    bool
-    isGenesisRecord() const;
-
-    /**
-     * Data packet with name
-     * /<application-common-prefix>/<producer-name>/<record-type>/<record-name>/<timestamp>
-     */
-    std::shared_ptr<const Data> m_data;
+    inline std::shared_ptr<const Data> getEncodedData() const {
+        return m_data;
+    }
+    inline void setEncodedData(std::shared_ptr<const Data> data) {
+        m_data = data;
+    }
 
   private:
     void
@@ -158,15 +133,9 @@ class Record {
 
   protected:
     /**
-     * The record-type in
-     * /<application-common-prefix>/<producer-name>/<record-type>/<record-name>/<timestamp>
+     * encoded data packet
      */
-    RecordType m_type;
-    /**
-     * The record-name as
-     * /<producer-prefix>/RECORD/<event-name>
-     */
-    Name m_recordName;
+    std::shared_ptr<const Data> m_data;
     /**
      * The list of pointers to preceding records.
      */
@@ -174,12 +143,11 @@ class Record {
     /**
      * The data structure to carry the record body payloads.
      */
-    Block m_contentItem;
-};
-
-class GenesisRecord : public Record {
-  public:
-    GenesisRecord(int number);
+    optional<Data> m_contentData;
+    /**
+     * The data structure to carry hint on data origin.
+     */
+    //Block m_contentDataOriginHint;
 };
 
 } // namespace mnemosyne

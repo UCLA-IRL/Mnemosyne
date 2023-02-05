@@ -3,10 +3,6 @@ add_executable(backend-test backend-test.cpp)
 target_include_directories(backend-test PUBLIC ../src)
 target_link_libraries(backend-test PUBLIC mnemosyne)
 
-add_executable(seq-no-recovery-test seq-no-recovery-test.cpp)
-target_include_directories(seq-no-recovery-test PRIVATE ../src)
-target_link_libraries(seq-no-recovery-test PUBLIC mnemosyne)
-
 add_executable(record-test record-test.cpp)
 target_link_libraries(record-test PUBLIC mnemosyne)
 

@@ -1,11 +1,12 @@
-#include "storage.h"
+#include "storage-leveldb.h"
 
 #include <cassert>
 #include <iostream>
 
-namespace mnemosyne {
+using namespace ndn;
+namespace mnemosyne::storage {
 
-Storage::Storage(const std::string &dbDir) {
+StorageLevelDb::StorageLevelDb(const std::string &dbDir) {
     leveldb::Options options;
     options.create_if_missing = true;
     leveldb::Status status = leveldb::DB::Open(options, dbDir, &m_db);
@@ -16,12 +17,12 @@ Storage::Storage(const std::string &dbDir) {
     }
 }
 
-Storage::~Storage() {
+StorageLevelDb::~StorageLevelDb() {
     delete m_db;
 }
 
-shared_ptr<Data>
-Storage::getRecord(const Name &recordName) const {
+std::shared_ptr<const ndn::Data>
+StorageLevelDb::getRecord(const Name &recordName) const {
     const auto &nameStr = recordName.toUri();
     leveldb::Slice key = nameStr;
     std::string value;
@@ -29,13 +30,13 @@ Storage::getRecord(const Name &recordName) const {
     if (!s.ok()) {
         return nullptr;
     } else {
-        ndn::Block block(make_span(reinterpret_cast<const uint8_t*>(value.data()), value.size()));
+        ndn::Block block(make_span(reinterpret_cast<const uint8_t *>(value.data()), value.size()));
         return make_shared<Data>(block);
     }
 }
 
 bool
-Storage::putRecord(const shared_ptr<const Data> &recordData) {
+StorageLevelDb::putRecord(const shared_ptr<const Data> &recordData) {
     const auto &nameStr = recordData->getFullName().toUri();
     leveldb::Slice key = nameStr;
     auto recordBytes = recordData->wireEncode();
@@ -48,7 +49,7 @@ Storage::putRecord(const shared_ptr<const Data> &recordData) {
 }
 
 void
-Storage::deleteRecord(const Name &recordName) {
+StorageLevelDb::deleteRecord(const Name &recordName) {
     const auto &nameStr = recordName.toUri();
     leveldb::Slice key = nameStr;
     leveldb::Status s = m_db->Delete(leveldb::WriteOptions(), key);
@@ -59,10 +60,12 @@ Storage::deleteRecord(const Name &recordName) {
 }
 
 std::list<Name>
-Storage::listRecord(const Name &prefix) const {
+StorageLevelDb::listRecord(const Name &prefix, uint32_t count) const {
     std::list<Name> names;
     leveldb::Iterator *it = m_db->NewIterator(leveldb::ReadOptions());
-    for (it->Seek(prefix.toUri()); it->Valid() && prefix.isPrefixOf(Name(it->key().ToString())); it->Next()) {
+    for (it->Seek(prefix.toUri());
+            it->Valid() && ((prefix.isPrefixOf(Name(it->key().ToString())) && count == 0)
+            || names.size() < count); it->Next()) {
         names.emplace_back(it->key().ToString());
     }
     assert(it->status().ok());  // Check for any errors found during the scan
@@ -70,7 +73,7 @@ Storage::listRecord(const Name &prefix) const {
     return std::move(names);
 }
 
-bool Storage::placeMetaData(std::string k, const std::string& v) {
+bool StorageLevelDb::placeMetaData(std::string k, const std::string &v) {
     if (k.empty() || k[0] == RECORD_PREFIX_CHAR) return false;
     leveldb::Slice key = k;
     leveldb::Slice value = v;
@@ -81,7 +84,7 @@ bool Storage::placeMetaData(std::string k, const std::string& v) {
     return true;
 }
 
-std::optional<std::string> Storage::getMetaData(const std::string& k) const {
+std::optional<std::string> StorageLevelDb::getMetaData(const std::string &k) const {
     if (k.empty() || k[0] == RECORD_PREFIX_CHAR) return std::nullopt;
     leveldb::Slice key = k;
     std::string value;

@@ -1,40 +1,65 @@
 #include "mnemosyne/record.hpp"
 
+#include <ndn-cxx/security/key-chain.hpp>
+#include <ndn-cxx/security/signing-helpers.hpp>
+#include <ndn-cxx/security/digest-sha256.hpp>
 #include <sstream>
 #include <utility>
 #include <iostream>
 
 namespace mnemosyne {
 
-Record::Record(RecordType type, const std::string& identifer)
-    : m_data(nullptr),
-      m_type(type),
-      m_recordName(identifer)
-{
+bool Record::isRecordName(const Name& recordName) {
+    int isFullName = !recordName.empty() && recordName.get(-1).isImplicitSha256Digest();
+    if (recordName.size() < 2 + isFullName) return false;
+    if (!recordName.get(-1 - isFullName).isNumber()) return false;
+    auto s = readString(recordName.get(-2 - isFullName));
+    return s == "RECORD";
 }
 
-Record::Record(Name recordName)
-        : m_data(nullptr),
-          m_recordName(std::move(recordName)) {
-    for (int i = 0; i < m_recordName.size(); i ++) {
-        if (readString(m_recordName.get(i)) == "RECORD") return;
-        if (readString(m_recordName.get(i)) == "GENESIS_RECORD") return;
-    }
-    NDN_THROW(std::runtime_error("Bad record name"));
+bool Record::isGenesisRecord(const Name& recordName) {
+    if (!isRecordName(recordName))
+        NDN_THROW(std::runtime_error("Bad record name at isGenesisRecord: " + recordName.toUri()));
+    int isFullName = !recordName.empty() && recordName.get(-1).isImplicitSha256Digest();
+    return recordName.get(-1 - isFullName).toNumber() == 0;
 }
 
-Record::Record(const Name &producerName, const Data &event)
-        : m_data(nullptr),
-          m_recordName(Name(producerName).append("RECORD").append(event.getName())) {
-    setContentItem(event.wireEncode());
+Name Record::getProducerPrefix(const Name& recordName) {
+    if (!isRecordName(recordName))
+        NDN_THROW(std::runtime_error("Bad record name at getProducerPrefix: " + recordName.toUri()));
+    int isFullName = !recordName.empty() && recordName.get(-1).isImplicitSha256Digest();
+    return recordName.getPrefix(-2 - isFullName);
 }
 
-Record::Record(const std::shared_ptr<Data> &data)
+uint64_t Record::getRecordSeqId(const Name& recordName) {
+    if (!isRecordName(recordName))
+        NDN_THROW(std::runtime_error("Bad record name at getRecordSeqId: " + recordName.toUri()));
+    int isFullName = !recordName.empty() && recordName.get(-1).isImplicitSha256Digest();
+    return recordName.get(-1 - isFullName).toNumber();
+}
+
+Name Record::getRecordName(Name producerName, const uint64_t seq_id) {
+    return std::move(producerName).append("RECORD").appendNumber(seq_id);
+}
+
+Name Record::getGenesisRecordFullName(const Name& recordName) {
+    Data d(recordName);
+    static ndn::KeyChain keychain;
+    keychain.sign(d, security::signingWithSha256());
+    return d.getFullName();
+}
+
+Record::Record(const Data &eventItem, Name eventProducer, uint64_t seqId)
+        : m_data(nullptr) {
+    setContentData(eventItem);
+}
+
+Record::Record(const std::shared_ptr<const Data> &data)
         : m_data(data) {
-    m_recordName = data->getName();
+    if (!isRecordName(data->getName()) || isGenesisRecord(data->getName()))
+        NDN_THROW(std::runtime_error("Bad record name"));
     headerWireDecode(m_data->getContent());
-    if (!isGenesisRecord())
-        bodyWireDecode(m_data->getContent());
+    bodyWireDecode(m_data->getContent());
 }
 
 Record::Record(ndn::Data data)
@@ -53,27 +78,21 @@ Record::getPointersFromHeader() const {
     return m_recordPointers;
 }
 
-void
-Record::setContentItem(const Block &contentItem) {
+void Record::setContentData(const Data &contentItem) {
     if (m_data != nullptr) {
         BOOST_THROW_EXCEPTION(std::runtime_error("Cannot modify built record"));
     }
-    m_contentItem = contentItem;
+    m_contentData = contentItem;
 }
 
-const Block &
-Record::getContentItem() const {
-    return m_contentItem;
-}
-
-const RecordType &
-Record::getType() const {
-    return m_type;
+const optional<Data> &
+Record::getContentData() const {
+    return m_contentData;
 }
 
 bool
 Record::isEmpty() const {
-    return m_data == nullptr && m_recordPointers.empty() && !m_contentItem.isValid();
+    return m_data == nullptr && m_recordPointers.empty() && !m_contentData.has_value();
 }
 
 void
@@ -88,15 +107,6 @@ void
 Record::wireEncode(Block &block) const {
     headerWireEncode(block);
     bodyWireEncode(block);
-}
-
-Name
-Record::getProducerPrefix() const {
-    for (int i = 0; i < m_recordName.size(); i ++) {
-        if (readString(m_recordName.get(i)) == "RECORD" || readString(m_recordName.get(i)) == "GENESIS_RECORD")
-            return m_recordName.getPrefix(i);
-    }
-    return Name();
 }
 
 void
@@ -135,7 +145,8 @@ Record::headerWireDecode(const Block &dataContent) {
 void
 Record::bodyWireEncode(Block &block) const {
     auto body = makeEmptyBlock(T_RecordContent);
-    body.push_back(m_contentItem);
+    if (m_contentData.has_value())
+        body.push_back(m_contentData->wireEncode());
     body.parse();
     block.push_back(body);
     block.parse();
@@ -145,48 +156,22 @@ void
 Record::bodyWireDecode(const Block &dataContent) {
     dataContent.parse();
     const auto &contentBlock = dataContent.get(T_RecordContent);
-    m_contentItem = contentBlock.blockFromValue();
+    m_contentData = Data(contentBlock.blockFromValue());
 }
 
 void
-Record::checkPointerCount(int numPointers) const {
-    if (getPointersFromHeader().size() != numPointers) {
+Record::checkPointerCount(uint32_t numPointers) const {
+    if (getPointersFromHeader().size() < numPointers) {
         throw std::runtime_error("Less preceding record than expected");
     }
 
     std::set<Name> nameSet;
     for (const auto &pointer: getPointersFromHeader()) {
-        nameSet.insert(pointer);
+        nameSet.insert(getProducerPrefix(pointer));
     }
     if (nameSet.size() != numPointers) {
         throw std::runtime_error("Repeated preceding Records");
     }
-}
-
-Name Record::getEventName() const {
-    for (int i = 0; i < m_recordName.size(); i ++) {
-        if (readString(m_recordName.get(i)) == "RECORD" || readString(m_recordName.get(i)) == "GENESIS_RECORD")
-            return m_recordName.getSubName(i + 1);
-    }
-    return Name();
-}
-
-bool Record::isGenesisRecord() const {
-    for (int i = 0; i < m_recordName.size(); i ++) {
-        if (readString(m_recordName.get(i)) == "RECORD") return false;
-        if (readString(m_recordName.get(i)) == "GENESIS_RECORD") return true;
-    }
-    return false;
-}
-
-const Name &Record::getRecordName() const {
-    return m_recordName;
-}
-
-GenesisRecord::GenesisRecord(int number) :
-    Record(Name("/mnemosyne/GENESIS_RECORD/").append(std::to_string(number)))
-{
-    setContentItem(makeEmptyBlock(tlv::Name));
 }
 
 }  // namespace mnemosyne

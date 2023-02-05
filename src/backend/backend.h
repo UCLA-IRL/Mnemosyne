@@ -1,24 +1,25 @@
 #ifndef MNEMOSYNE_BACKEND_H_
 #define MNEMOSYNE_BACKEND_H_
 
+#include <ndn-svs/version-vector.hpp>
 #include <ndn-cxx/data.hpp>
-#include "seq-no-recovery.h"
 
 using namespace ndn;
 namespace mnemosyne {
 
+namespace storage {
 class Storage;
+}
 
 class Backend {
   public:
-    Backend(const std::string &dbDir, uint32_t seqNoBackupFreq = 1);
+    Backend(const std::string &storage_type, const std::string &dbDir, uint32_t seqNoBackupFreq = 1);
 
   public:
     ~Backend() = default;
 
     // @param the recordName must be a full name (i.e., containing explicit digest component)
-    shared_ptr<Data>
-    getRecord(const Name &recordName) const;
+    shared_ptr<const Data> getRecord(const Name &recordName) const;
 
     bool
     putRecord(const shared_ptr<const Data> &recordData);
@@ -26,18 +27,21 @@ class Backend {
     void
     deleteRecord(const Name &recordName);
 
-    std::list<Name>
-    listRecord(const Name &prefix) const;
+    /**
+     *
+     * @param prefix
+     * @param count = 0 if listing all in prefix=start.
+     * @return
+     */
+    std::list<Name> listRecord(const Name &prefix, uint32_t count = 0) const;
 
-    void SeqNumAdd(uint32_t group, const ndn::Name& producer, uint64_t val);
+    void seqNumSet(uint32_t group, const ndn::Name& producer, uint64_t val);
 
-    bool isSeqNumIn(uint32_t group, const ndn::Name& producer, uint64_t val) const;
-
-    std::optional<uint64_t> SeqNumLastContinuous(uint32_t group, const ndn::Name& producer, uint64_t start) const;
+    const svs::VersionVector& seqNumGet(uint32_t group) const;
 
   private:
-    std::shared_ptr<Storage> m_storage;
-    SeqNoRecovery m_seqNoRecovery;
+    std::shared_ptr<storage::Storage> m_storage;
+    std::map<uint32_t, ndn::svs::VersionVector> m_versionRecovery;
     uint32_t m_seqNoBackupFreq;
     uint32_t m_lastSeqNoBackup;
 

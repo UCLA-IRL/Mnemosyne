@@ -20,6 +20,7 @@ class DagReferenceChecker {
     DagReferenceChecker(std::weak_ptr<Backend> backend,
                         std::function<void(std::unique_ptr <Record> , const Name& , svs::SeqNo)> readyRecordCallback);
 
+    //TODO add mechanism to check for dangling record (mostly by duplicate name+seqId)
     void addRecord(std::unique_ptr<Record> record, const Name& name, svs::SeqNo seqId);
 
   private:

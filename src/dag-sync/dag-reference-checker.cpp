@@ -19,15 +19,26 @@ void DagReferenceChecker::verifyPreviousRecord(std::unique_ptr<Record> record, c
     }
     auto recordName = record->getRecordFullName();
     for (const auto &i: record->getPointersFromHeader()) {
-        if (m_waitingRecords.count(i) || !backend->getRecord(i)) { //verification failed
+        if (!Record::isRecordName(i) || !i.get(-1).isImplicitSha256Digest()) {
+            NDN_LOG_ERROR("Bad preceding record: " << i << " in " << record->getRecordFullName());
+            return;
+        }
+        if (Record::isGenesisRecord(i)) {
+            if (i == Record::getGenesisRecordFullName(i.getPrefix(-1))) continue;
+            else {
+                NDN_LOG_ERROR("Bad genesis preceding record: " << i << " in " << record->getRecordFullName());
+                return;
+            }
+        } else if (m_waitingRecords.count(i) || !backend->getRecord(i)) { //verification failed
             m_targetForWaitingRecords.emplace(i, recordName);
             m_waitingRecords.emplace(recordName, std::tuple(std::move(record), producer, seqId));
+            NDN_LOG_INFO(recordName << " waiting for " << i);
             return;
         }
     }
 
     //verification success
-    NDN_LOG_INFO("record checked for reference" << record->m_data->getFullName());
+    NDN_LOG_INFO("record checked for reference: " << record->getEncodedData()->getFullName());
     m_readyRecordCallback(std::move(record), producer, seqId);
 
     std::map<Name, std::tuple<std::unique_ptr<Record>, Name, svs::SeqNo>> waitingList;

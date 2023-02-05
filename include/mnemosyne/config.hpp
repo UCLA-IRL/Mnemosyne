@@ -28,14 +28,10 @@ class Config {
     size_t precedingRecordNum = 2;
 
     /**
-     * The number of genesis block for the DAG.
+     * The retries for fetching records.
      */
-    size_t numGenesisBlock = 10;
-
-    /**
-     * The timeout for fetching ancestor records.
-     */
-    time::milliseconds ancestorFetchTimeout = time::milliseconds(10000);
+    int recordFetchRetries = 1;
+    int hintedFetchRetries = 2;
 
     /**
      * Frequency of helper sequence number backup
@@ -47,6 +43,10 @@ class Config {
      */
     Name syncPrefix;
     /**
+     * The hint prefix, the multicast prefix used as forwarding hint in backup fetching
+     */
+     Name hintPrefix;
+    /**
      * The interface pub/sub prefix, under which an publication can reach all Mnemosyne loggers.
      */
     Name interfacePrefix;
@@ -54,6 +54,10 @@ class Config {
      * Producer's unique name prefix, under which an Interest can reach to the producer.
      */
     Name peerPrefix;
+    /**
+     * The Database type;
+     */
+    std::string databaseType = "leveldb";
     /**
      * The path to the Database;
      */

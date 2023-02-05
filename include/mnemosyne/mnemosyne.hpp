@@ -1,7 +1,7 @@
 #ifndef MNEMOSYNE_MNEMOSYNE_H_
 #define MNEMOSYNE_MNEMOSYNE_H_
 
-#include "mnemosyne/mnemosyne-dag-sync.hpp"
+#include "mnemosyne/mnemosyne-dag-logger.hpp"
 #include <ndn-svs/svspubsub.hpp>
 
 using namespace ndn;
@@ -35,7 +35,7 @@ class Mnemosyne {
   protected:
     const Config m_config;
     security::KeyChain &m_keychain;
-    MnemosyneDagSync m_dagSync;
+    MnemosyneDagLogger m_dagSync;
     svs::SVSPubSub m_interfacePS;
     Scheduler m_scheduler;
     std::shared_ptr<ndn::security::Validator> m_eventValidator;

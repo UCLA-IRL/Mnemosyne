@@ -29,17 +29,18 @@ void Mnemosyne::onSubscriptionData(const svs::SVSPubSub::SubscriptionData& subDa
         NDN_LOG_WARN("error");
         return;
     }
-    m_eventValidator->validate(*subData.packet, [this](const Data& eventData){
+    m_eventValidator->validate(*subData.packet,
+                               [this, producer=subData.producerPrefix, seqId=subData.seqNo](const Data& eventData){
         std::uniform_int_distribution<int> delayDistribution(0, 1000);
         NDN_LOG_INFO("Received event data " << eventData.getFullName());
-        m_scheduler.schedule(time::milliseconds(delayDistribution(m_randomEngine)), [this, eventData]() {
+        m_scheduler.schedule(time::milliseconds(delayDistribution(m_randomEngine)), [this, eventData, producer, seqId]() {
             if (seenEvent(eventData.getFullName())) {
                 NDN_LOG_INFO("Event data " << eventData.getFullName() << " found in DAG. ");
                 return;
             } else {
                 NDN_LOG_INFO("Event data " << eventData.getFullName() << " not found in DAG. Publishing...");
             }
-            Record record(m_dagSync.getPeerPrefix(), eventData);
+            Record record(eventData, producer, seqId);
             m_dagSync.createRecord(record);
         });
     }, [](const Data& eventData, auto&& error){
@@ -59,7 +60,7 @@ ndn::svs::SecurityOptions Mnemosyne::getSecurityOption() {
 }
 
 void Mnemosyne::onRecordUpdate(Record record) {
-    m_eventValidator->validate(Data(record.getContentItem()), [&](const auto& eventData){
+    m_eventValidator->validate(record.getContentData().value(), [&](const auto& eventData){
         const auto& eventFullName = eventData.getFullName();
         m_eventSet.insert(eventFullName);
     }, [](const auto& data, const auto& error){

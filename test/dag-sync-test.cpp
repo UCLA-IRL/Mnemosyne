@@ -14,13 +14,13 @@ using namespace mnemosyne;
 std::random_device rd;  //Will be used to obtain a seed for the random number engine
 std::mt19937 random_gen(rd()); //Standard mersenne_twister_engine seeded with rd()
 
-void periodicAddRecord(KeyChain& keychain, shared_ptr<MnemosyneDagSync> ledger, Scheduler &scheduler) {
+void periodicAddRecord(KeyChain& keychain, shared_ptr<MnemosyneDagLogger> ledger, Scheduler &scheduler) {
     std::uniform_int_distribution<int> distribution(0, INT_MAX);
     Data data("/a/b/" + std::to_string(distribution(random_gen)));
     data.setContent(makeStringBlock(tlv::Content, std::to_string(distribution(random_gen))));
     keychain.sign(data, signingWithSha256());
 
-    Record record(ledger->getPeerPrefix(), data);
+    Record record(data, ledger->getPeerPrefix(), 1);
     ledger->createRecord(record);
 
     // schedule for the next record generation
@@ -41,6 +41,7 @@ int main(int argc, char **argv) {
     try {
         config = Config::CustomizedConfig("/ndn/broadcast/mnemosyne-dag", "/ndn/broadcast/mnemosyne", identity,
                                           std::string("/tmp/mnemosyne-db/" + identity.substr(identity.rfind('/'))));
+        config->hintPrefix = "/ndn/broadcast/mnemosyne-hint";
         auto configValidator = std::make_shared<ndn::security::ValidatorConfig>(face);
         configValidator->load("./test/loggers.schema");
         validator = std::make_shared<ndn::security::ValidatorNull>();
@@ -50,8 +51,8 @@ int main(int argc, char **argv) {
         std::cout << e.what() << std::endl;
         return 1;
     }
-    auto ledger_ptr = new MnemosyneDagSync(*config, keychain, face, validator);
-    auto ledger = std::shared_ptr<MnemosyneDagSync>(ledger_ptr);
+    auto ledger_ptr = new MnemosyneDagLogger(*config, keychain, face, validator);
+    auto ledger = std::shared_ptr<MnemosyneDagLogger>(ledger_ptr);
 
     Scheduler scheduler(ioService);
     scheduler.schedule(time::seconds(5), [&keychain, ledger, &scheduler] { periodicAddRecord(keychain, ledger, scheduler); });
