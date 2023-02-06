@@ -81,12 +81,16 @@ bool testNameGet() {
 
 bool testMetaDataStore(const std::string &type) {
     auto backend = storage::getStorage(type, "/tmp/test-List.leveldb");
-    if (backend->placeMetaData("/a", "abc")) return false;
+    if (backend->placeMetaData("/a", "abc") == (type == "leveldb")) return false;
     if (!backend->placeMetaData("a", "abc")) return false;
+    if (!backend->listRecord("/zzzzzzzzzzz", 1).empty()) {
+        std::cout << *backend->listRecord("/", 1).begin() << std::endl;
+        return false;
+    }
 
     if (!backend->getMetaData("a")) return false;
     if (*backend->getMetaData("a") != "abc") return false;
-    if (backend->getMetaData("b")) return false;
+    if (backend->getMetaData("b").has_value()) return false;
     return true;
 }
 

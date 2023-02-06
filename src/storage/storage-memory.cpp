@@ -40,7 +40,7 @@ bool StorageMemory::placeMetaData(std::string k, const std::string &v) {
 
 std::optional<std::string> StorageMemory::getMetaData(const std::string &k) const {
     auto it = m_metaDataStore.find(k);
-    if (it == m_metaDataStore.end()) return nullptr;
+    if (it == m_metaDataStore.end()) return std::nullopt;
     else return it->second;
 }
 

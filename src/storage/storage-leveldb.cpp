@@ -63,10 +63,11 @@ std::list<Name>
 StorageLevelDb::listRecord(const Name &prefix, uint32_t count) const {
     std::list<Name> names;
     leveldb::Iterator *it = m_db->NewIterator(leveldb::ReadOptions());
-    for (it->Seek(prefix.toUri());
-            it->Valid() && ((prefix.isPrefixOf(Name(it->key().ToString())) && count == 0)
+    for (it->Seek(prefix.toUri()); it->Valid() &&
+            ((prefix.isPrefixOf(Name(it->key().ToString())) && count == 0)
             || names.size() < count); it->Next()) {
-        names.emplace_back(it->key().ToString());
+        if (!it->key().ToString().empty() && it->key().ToString().at(0) == RECORD_PREFIX_CHAR)
+            names.emplace_back(it->key().ToString());
     }
     assert(it->status().ok());  // Check for any errors found during the scan
     delete it;
