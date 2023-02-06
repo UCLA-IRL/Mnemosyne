@@ -195,17 +195,19 @@ void MnemosyneDagLogger::onUpdate(const std::vector<ndn::svs::MissingDataInfo>& 
 void MnemosyneDagLogger::addReceivedRecord(std::unique_ptr<Record> record, const Name& producer, svs::SeqNo seqId) {
     NDN_LOG_INFO("Add record to ledger: " << record->getRecordFullName());
     const shared_ptr<const Data>& recordData = record->getEncodedData();
+
+    //backend update
     if (m_backend->seqNumGet(Backend::DAG_SYNC_GROUP).get(producer) + 1 != seqId) {
         NDN_LOG_WARN(" - previous version does not have continuous version vector with " << record->getRecordFullName());
     }
     m_backend->seqNumSet(Backend::DAG_SYNC_GROUP, producer, seqId);
+    m_backend->putRecord(recordData);
 
+    //local update
     m_lastRecordInChains[Record::getProducerPrefix(recordData->getName())] = recordData->getFullName();
-
     if (producer == m_config.peerPrefix) {
         m_KnownSelfSeqId = std::max(m_KnownSelfSeqId, Record::getRecordSeqId(record->getRecordFullName()));
     } else {
-        m_backend->putRecord(recordData);
         if (m_onRecordCallback) {
             m_onRecordCallback(*record);
         }

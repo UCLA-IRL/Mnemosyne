@@ -22,10 +22,17 @@ mnemosyne::dag::RecordSync::RecordSync(const ndn::Name &syncPrefix,
                      m_face(face),
                      m_hintPrefix(hintPrefix),
                      m_fetcher(face, securityOptions) {
-    //TODO fix multicast fetch
-    m_registerHintPrefix = m_face.setInterestFilter(hintPrefix,
-                                                 std::bind(&RecordSync::onDataInterest, this, _2),
-                                                 [] (auto&&...) {});
+    m_registerHintPrefix = m_face.registerPrefix(hintPrefix, [this](auto&&...){
+        m_registerFilterHandle = m_face.setInterestFilter("/", std::bind(&RecordSync::onDataInterest, this, _2));
+    }, [](auto&&...){
+        NDN_LOG_FATAL("Error: Hint prefix registration failed");
+    });
+
+}
+
+mnemosyne::dag::RecordSync::~RecordSync() {
+    m_registerHintPrefix.cancel();
+    m_registerFilterHandle.cancel();
 }
 
 svs::SeqNo mnemosyne::dag::RecordSync::publishData(Record& record, const ndn::time::milliseconds& freshness,
@@ -86,10 +93,16 @@ void mnemosyne::dag::RecordSync::onDataValidated(const Data& data, const svs::Da
 }
 
 void mnemosyne::dag::RecordSync::onDataInterest(const Interest &interest) {
-    NDN_LOG_INFO("Hinted face incoming: " << interest.getName());
-    auto data = getDataStore().find(interest);
-    if (data != nullptr)
-        m_face.put(*data);
+    if (interest.getForwardingHint().empty()) return;
+    for (const Name& hintName: interest.getForwardingHint()) {
+        if (m_hintPrefix.isPrefixOf(hintName)) {
+            NDN_LOG_INFO("Hinted face incoming: " << interest.getName());
+            auto data = getDataStore().find(interest);
+            if (data != nullptr)
+                m_face.put(*data);
+            return;
+        }
+    }
 }
 
 mnemosyne::dag::RecordSync::BackendDataStore::BackendDataStore(std::weak_ptr<Backend> backend)

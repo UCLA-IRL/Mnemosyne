@@ -41,6 +41,8 @@ class RecordSync : public svs::SVSyncBase {
                std::weak_ptr<Backend> backend,
                const ndn::svs::SecurityOptions &securityOptions = ndn::svs::SecurityOptions::DEFAULT);
 
+    ~RecordSync();
+
     inline ndn::Name getDataName(const ndn::svs::NodeID &nid, const ndn::svs::SeqNo &seqNo) override {
         return Record::getRecordName(nid, seqNo);
     }
@@ -109,6 +111,7 @@ class RecordSync : public svs::SVSyncBase {
     ndn::Name m_hintPrefix;
     ndn::svs::Fetcher m_fetcher;
     ndn::ScopedRegisteredPrefixHandle m_registerHintPrefix;
+    ndn::InterestFilterHandle m_registerFilterHandle;
 };
 
 } // namespace mnemosyne::dag
