@@ -64,7 +64,7 @@ void MnemosyneDagLogger::restoreRecordSyncVersionVector() {
     for (const auto& [producer, s] : restored_vv) {
         auto seq = s;
         auto listed = m_backend->listRecord(Record::getRecordName(producer, seq), 1);
-        if (producer != m_config.peerPrefix && (listed.empty() || !producer.isPrefixOf(*listed.begin()))) {
+        if (producer != m_config.peerPrefix && listed.empty()) {
             NDN_LOG_FATAL("Failed to restore sequenced record");
             exit(1);
         }
@@ -72,14 +72,15 @@ void MnemosyneDagLogger::restoreRecordSyncVersionVector() {
             auto l = m_backend->listRecord(Record::getRecordName(producer, seq + 1), 1);
             if (l.empty()) {
                 break;
-            }
-            else {
+            } else {
                 seq ++;
                 m_lastRecordInChains[producer] = *l.begin();
             }
         }
         m_dagSync->getCore().updateSeqNo(seq, producer);
-        if (seq != s) m_backend->seqNumSet(Backend::DAG_SYNC_GROUP, producer, seq);
+        if (seq != s) {
+            m_backend->seqNumSet(Backend::DAG_SYNC_GROUP, producer, seq);
+        }
         restored_vv.set(producer, seq);
 
         if (producer == m_config.peerPrefix) {
