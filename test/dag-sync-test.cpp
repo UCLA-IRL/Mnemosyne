@@ -24,7 +24,7 @@ void periodicAddRecord(KeyChain& keychain, shared_ptr<MnemosyneDagLogger> ledger
     ledger->createRecord(record);
 
     // schedule for the next record generation
-    scheduler.schedule(time::seconds(5), [&keychain, ledger, &scheduler] { periodicAddRecord(keychain, ledger, scheduler); });
+    scheduler.schedule(time::seconds(1), [&keychain, ledger, &scheduler] { periodicAddRecord(keychain, ledger, scheduler); });
 }
 
 int main(int argc, char **argv) {

@@ -112,7 +112,6 @@ shared_ptr<const Data> mnemosyne::dag::RecordSync::BackendDataStore::find(const 
     auto backend = m_backend.lock();
     auto list = backend->listRecord(interest.getName(), interest.getCanBePrefix()? 1 : 0);
     for (const auto &n: list) {
-        if (!interest.getName().isPrefixOf(n)) continue;
         if (!interest.getCanBePrefix() && n.size() > interest.getName().size() + 1) continue;
         return backend->getRecord(n);
     }

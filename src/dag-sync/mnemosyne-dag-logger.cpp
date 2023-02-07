@@ -2,6 +2,7 @@
 
 #include "backend/backend.h"
 #include "dag-sync/dag-reference-checker.h"
+#include "dag-sync/replication-counter.h"
 #include "dag-sync/record-sync.h"
 #include "util.hpp"
 
@@ -26,10 +27,10 @@ MnemosyneDagLogger::MnemosyneDagLogger(const Config &config,
                                        Face &network,
                                        std::shared_ptr<ndn::security::Validator> recordValidator)
         : m_config(config)
-        , m_keychain(keychain)
-        , m_backend(std::make_shared<Backend>(config.databaseType, config.databasePath, m_config.SeqNoBackupFreq))
+        , m_backend(std::make_shared<Backend>(config.databaseType, config.databasePath, m_config.seqNoBackupFreq))
         , m_dagReferenceChecker(std::make_unique<DagReferenceChecker>(m_backend,
                                 std::bind(&MnemosyneDagLogger::addReceivedRecord, this, _1, _2, _3)))
+        , m_replicationCounter(std::make_unique<dag::ReplicationCounter>(config.peerPrefix, config.maxReplicationCount))
         , m_dagSync(make_unique<dag::RecordSync>(config.syncPrefix, config.peerPrefix, config.hintPrefix, network,
                     [&](const auto& i){onUpdate(i);},
                     m_backend,
@@ -62,20 +63,14 @@ void MnemosyneDagLogger::restoreRecordSyncVersionVector() {
         restored_vv.set(m_config.peerPrefix, 0);
     for (const auto& [producer, s] : restored_vv) {
         auto seq = s;
-        auto listed = m_backend->listRecord(Record::getRecordName(producer, seq), m_config.SeqNoBackupFreq);
+        auto listed = m_backend->listRecord(Record::getRecordName(producer, seq), 1);
         if (producer != m_config.peerPrefix && (listed.empty() || !producer.isPrefixOf(*listed.begin()))) {
             NDN_LOG_FATAL("Failed to restore sequenced record");
             exit(1);
         }
-        for (const auto &n: listed) {
-            if (producer.isPrefixOf(n)) {
-                seq = std::max(seq, Record::getRecordSeqId(n));
-                m_lastRecordInChains[producer] = n;
-            } else break;
-        }
         while (true) {
             auto l = m_backend->listRecord(Record::getRecordName(producer, seq + 1), 1);
-            if (l.empty() || !producer.isPrefixOf(*l.begin())) {
+            if (l.empty()) {
                 break;
             }
             else {
@@ -85,6 +80,7 @@ void MnemosyneDagLogger::restoreRecordSyncVersionVector() {
         }
         m_dagSync->getCore().updateSeqNo(seq, producer);
         if (seq != s) m_backend->seqNumSet(Backend::DAG_SYNC_GROUP, producer, seq);
+        restored_vv.set(producer, seq);
 
         if (producer == m_config.peerPrefix) {
             m_KnownSelfSeqId = seq;
@@ -112,7 +108,7 @@ ReturnCode MnemosyneDagLogger::createRecord(Record &record) {
     NDN_LOG_INFO("[MnemosyneDagLogger::createRecord] Add new record");
 
     if (Record::getRecordSeqId(m_lastRecordInChains.at(m_config.peerPrefix)) < m_KnownSelfSeqId) {
-        NDN_LOG_WARN("[MnemosyneDagLogger::createRecord] waiting for record discovery");
+        NDN_LOG_WARN("[MnemosyneDagLogger::createRecord] waiting for record discovery: " << m_KnownSelfSeqId);
         return ReturnCode::timingError("Waiting for self record recovery");
     }
     if (m_lastRecordInChains.size() < m_config.precedingRecordNum) {
@@ -144,17 +140,23 @@ ReturnCode MnemosyneDagLogger::createRecord(Record &record) {
 }
 
 optional<Record> MnemosyneDagLogger::getRecord(const std::string &recordName) const {
-    NDN_LOG_DEBUG("getRecord Called on " << recordName);
     return m_backend->getRecord(recordName);
 }
 
 bool MnemosyneDagLogger::hasRecord(const std::string &recordName) const {
-    auto dataPtr = m_backend->getRecord(Name(recordName));
-    return dataPtr != nullptr;
+    auto list = m_backend->listRecord(Name(recordName), 1);
+    if (list.empty()) return false;
+    return *list.begin() == recordName;
 }
 
 std::list<Name> MnemosyneDagLogger::listRecord(const std::string &prefix) const {
     return m_backend->listRecord(Name(prefix));
+}
+
+std::list<uint64_t> MnemosyneDagLogger::getReplicationSeqId() const {
+    auto re = m_replicationCounter->getCounts();
+    re.push_back(m_KnownSelfSeqId);
+    return re;
 }
 
 void MnemosyneDagLogger::onUpdate(const std::vector<ndn::svs::MissingDataInfo>& info) {
@@ -208,6 +210,7 @@ void MnemosyneDagLogger::addReceivedRecord(std::unique_ptr<Record> record, const
     if (producer == m_config.peerPrefix) {
         m_KnownSelfSeqId = std::max(m_KnownSelfSeqId, Record::getRecordSeqId(record->getRecordFullName()));
     } else {
+        m_replicationCounter->recordUpdate(*record);
         if (m_onRecordCallback) {
             m_onRecordCallback(*record);
         }

@@ -10,7 +10,6 @@ Config::CustomizedConfig(const std::string &multicastPrefix, const std::string &
                          const std::string &databasePath) {
 
     //starting peers
-    std::list<security::Certificate> startingPeerCerts;
     auto config = std::make_shared<Config>(multicastPrefix, interfacePrefix, producerPrefix);
     config->databasePath = databasePath;
     return config;

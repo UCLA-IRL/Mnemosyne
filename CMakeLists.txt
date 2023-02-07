@@ -33,6 +33,8 @@ set(MNEMOSYNE_LIB_SOURCE_FILES
         src/dag-sync/dag-reference-checker.h
         src/dag-sync/record-sync.cpp
         src/dag-sync/record-sync.h
+        src/dag-sync/replication-counter.cpp
+        src/dag-sync/replication-counter.h
         src/mnemosyne.cpp
         src/record.cpp
         src/config.cpp

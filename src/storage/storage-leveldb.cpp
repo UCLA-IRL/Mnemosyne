@@ -23,7 +23,7 @@ StorageLevelDb::~StorageLevelDb() {
 
 std::shared_ptr<const ndn::Data>
 StorageLevelDb::getRecord(const Name &recordName) const {
-    const auto &nameStr = recordName.toUri();
+    const auto &nameStr = recordName.toUri(name::UriFormat::CANONICAL);
     leveldb::Slice key = nameStr;
     std::string value;
     leveldb::Status s = m_db->Get(leveldb::ReadOptions(), key, &value);
@@ -37,7 +37,7 @@ StorageLevelDb::getRecord(const Name &recordName) const {
 
 bool
 StorageLevelDb::putRecord(const shared_ptr<const Data> &recordData) {
-    const auto &nameStr = recordData->getFullName().toUri();
+    const auto &nameStr = recordData->getFullName().toUri(name::UriFormat::CANONICAL);
     leveldb::Slice key = nameStr;
     auto recordBytes = recordData->wireEncode();
     leveldb::Slice value((const char *) recordBytes.wire(), recordBytes.size());
@@ -50,7 +50,7 @@ StorageLevelDb::putRecord(const shared_ptr<const Data> &recordData) {
 
 void
 StorageLevelDb::deleteRecord(const Name &recordName) {
-    const auto &nameStr = recordName.toUri();
+    const auto &nameStr = recordName.toUri(name::UriFormat::CANONICAL);
     leveldb::Slice key = nameStr;
     leveldb::Status s = m_db->Delete(leveldb::WriteOptions(), key);
     if (!s.ok()) {
@@ -63,9 +63,8 @@ std::list<Name>
 StorageLevelDb::listRecord(const Name &prefix, uint32_t count) const {
     std::list<Name> names;
     leveldb::Iterator *it = m_db->NewIterator(leveldb::ReadOptions());
-    for (it->Seek(prefix.toUri()); it->Valid() &&
-            ((prefix.isPrefixOf(Name(it->key().ToString())) && count == 0)
-            || names.size() < count); it->Next()) {
+    for (it->Seek(prefix.toUri(name::UriFormat::CANONICAL)); it->Valid() &&
+            prefix.isPrefixOf(Name(it->key().ToString())) && (count == 0 || names.size() < count); it->Next()) {
         if (!it->key().ToString().empty() && it->key().ToString().at(0) == RECORD_PREFIX_CHAR)
             names.emplace_back(it->key().ToString());
     }

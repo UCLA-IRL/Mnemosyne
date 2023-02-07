@@ -23,6 +23,7 @@ class DagReferenceChecker;
 
 namespace dag {
 class RecordSync;
+class ReplicationCounter;
 }
 
 class MnemosyneDagLogger {
@@ -65,6 +66,12 @@ class MnemosyneDagLogger {
     virtual std::list<Name>
     listRecord(const std::string &prefix) const;
 
+    /**
+     * return the current list for determining the replication count.
+     * @return a list of highest sequence number for each weight, starting at maxCount and ending with 0
+     */
+    std::list<uint64_t> getReplicationSeqId() const;
+
     const Name& getPeerPrefix() const;
 
     void setOnRecordCallback(std::function<void(const Record&)> callback) {
@@ -83,8 +90,8 @@ class MnemosyneDagLogger {
     const Config m_config;
     std::shared_ptr<Backend> m_backend;
     std::unique_ptr<DagReferenceChecker> m_dagReferenceChecker;
-    security::KeyChain &m_keychain;
-    std::unique_ptr<mnemosyne::dag::RecordSync> m_dagSync;
+    std::unique_ptr<dag::ReplicationCounter> m_replicationCounter;
+    std::unique_ptr<dag::RecordSync> m_dagSync;
     std::function<void(const Record&)> m_onRecordCallback;
 
     std::unordered_map<Name, Name> m_lastRecordInChains;

@@ -36,7 +36,12 @@ class Config {
     /**
      * Frequency of helper sequence number backup
      */
-    uint32_t SeqNoBackupFreq = 10;
+    uint32_t seqNoBackupFreq = 10;
+
+    /**
+     * max replication count, 0 mean off
+     */
+     uint32_t maxReplicationCount = 1;
 
     /**
      * The multicast prefix, under which an Interest can reach to all the peers in the same multicast group.
