@@ -1,4 +1,5 @@
 #include "mnemosyne/mnemosyne.hpp"
+#include "interface/seen-event-set.h"
 #include "util.hpp"
 
 #include <ndn-cxx/util/logger.hpp>
@@ -18,9 +19,10 @@ Mnemosyne::Mnemosyne(const Config &config, KeyChain &keychain, Face &network, st
         m_dagSync(m_config, keychain, network, std::move(recordValidator)),
         m_scheduler(network.getIoService()),
         m_interfacePS(config.interfacePrefix, config.peerPrefix, network, [](const auto& i){}, getSecurityOption()),
-        m_eventValidator(std::move(eventValidator))
+        m_eventValidator(std::move(eventValidator)),
+        m_seenEvents(std::make_unique<interface::SeenEventSet>(config.seenEventTtl))
 {
-    m_interfacePS.subscribe(Name("/"), [&](const auto& d){ onSubscriptionData(d);});
+    m_interfacePS.subscribeToProducer(Name("/"), [&](const auto& d){ onSubscriptionData(d);});
     m_dagSync.setOnRecordCallback([&](const auto& record) {onRecordUpdate(record);});
 }
 
@@ -31,10 +33,11 @@ void Mnemosyne::onSubscriptionData(const svs::SVSPubSub::SubscriptionData& subDa
     }
     m_eventValidator->validate(*subData.packet,
                                [this, producer=subData.producerPrefix, seqId=subData.seqNo](const Data& eventData){
-        std::uniform_int_distribution<int> delayDistribution(0, 1000);
+        std::uniform_int_distribution<uint32_t> delayDistribution(0, m_config.insertBackoffMaxMs);
         NDN_LOG_INFO("Received event data " << eventData.getFullName());
+        if (m_seenEvents->hasEvent(eventData.getFullName())) return;
         m_scheduler.schedule(time::milliseconds(delayDistribution(m_randomEngine)), [this, eventData, producer, seqId]() {
-            if (seenEvent(eventData.getFullName())) {
+            if (m_seenEvents->hasEvent(eventData.getFullName())) {
                 NDN_LOG_INFO("Event data " << eventData.getFullName() << " found in DAG. ");
                 return;
             } else {
@@ -62,14 +65,10 @@ ndn::svs::SecurityOptions Mnemosyne::getSecurityOption() {
 void Mnemosyne::onRecordUpdate(Record record) {
     m_eventValidator->validate(record.getContentData().value(), [&](const auto& eventData){
         const auto& eventFullName = eventData.getFullName();
-        m_eventSet.insert(eventFullName);
+        m_seenEvents->addEvent(eventFullName);
     }, [](const auto& data, const auto& error){
         NDN_LOG_INFO("Verification error on event record " << data.getFullName() << ": " << error);
     });
-}
-
-bool Mnemosyne::seenEvent(const Name& name) const{
-    return m_eventSet.count(name);
 }
 
 Mnemosyne::~Mnemosyne() = default;

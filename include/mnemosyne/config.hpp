@@ -41,7 +41,7 @@ class Config {
     /**
      * max replication count, 0 mean off
      */
-     uint32_t maxReplicationCount = 1;
+     uint32_t maxCountedReplication = 1;
 
     /**
      * The multicast prefix, under which an Interest can reach to all the peers in the same multicast group.
@@ -51,10 +51,6 @@ class Config {
      * The hint prefix, the multicast prefix used as forwarding hint in backup fetching
      */
      Name hintPrefix;
-    /**
-     * The interface pub/sub prefix, under which an publication can reach all Mnemosyne loggers.
-     */
-    Name interfacePrefix;
     /**
      * Producer's unique name prefix, under which an Interest can reach to the producer.
      */
@@ -67,6 +63,16 @@ class Config {
      * The path to the Database;
      */
     std::string databasePath;
+
+    /**
+     * Interface only configs
+     */
+    uint32_t insertBackoffMaxMs = 1000;
+    std::chrono::seconds seenEventTtl = std::chrono::minutes(1);
+    /**
+     * The interface pub/sub prefix, under which an publication can reach all Mnemosyne loggers.
+     */
+    Name interfacePrefix;
 };
 
 } // namespace mnemosyne

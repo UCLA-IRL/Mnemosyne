@@ -35,7 +35,9 @@ set(MNEMOSYNE_LIB_SOURCE_FILES
         src/dag-sync/record-sync.h
         src/dag-sync/replication-counter.cpp
         src/dag-sync/replication-counter.h
-        src/mnemosyne.cpp
+        src/interface/seen-event-set.cpp
+        src/interface/seen-event-set.h
+        src/interface/mnemosyne.cpp
         src/record.cpp
         src/config.cpp
         src/util.cpp

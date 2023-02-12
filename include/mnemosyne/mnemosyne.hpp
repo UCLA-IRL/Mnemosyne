@@ -7,6 +7,10 @@
 using namespace ndn;
 namespace mnemosyne {
 
+namespace interface {
+class SeenEventSet;
+}
+
 class Mnemosyne {
   public:
     /**
@@ -30,8 +34,6 @@ class Mnemosyne {
 
     void onRecordUpdate(Record record);
 
-    bool seenEvent(const Name& name) const;
-
   protected:
     const Config m_config;
     security::KeyChain &m_keychain;
@@ -40,8 +42,10 @@ class Mnemosyne {
     Scheduler m_scheduler;
     std::shared_ptr<ndn::security::Validator> m_eventValidator;
 
-    //TODO convert to a database structure
-    std::set<Name> m_eventSet;
+    //TODO add a timer before start accepting records
+    //TODO persistence
+    //TODO multi-interface
+    std::unique_ptr<interface::SeenEventSet> m_seenEvents;
 
     std::mt19937_64 m_randomEngine;
   };

@@ -30,7 +30,7 @@ MnemosyneDagLogger::MnemosyneDagLogger(const Config &config,
         , m_backend(std::make_shared<Backend>(config.databaseType, config.databasePath, m_config.seqNoBackupFreq))
         , m_dagReferenceChecker(std::make_unique<DagReferenceChecker>(m_backend,
                                 std::bind(&MnemosyneDagLogger::addReceivedRecord, this, _1, _2, _3)))
-        , m_replicationCounter(std::make_unique<dag::ReplicationCounter>(config.peerPrefix, config.maxReplicationCount))
+        , m_replicationCounter(std::make_unique<dag::ReplicationCounter>(config.peerPrefix, config.maxCountedReplication))
         , m_dagSync(make_unique<dag::RecordSync>(config.syncPrefix, config.peerPrefix, config.hintPrefix, network,
                     [&](const auto& i){onUpdate(i);},
                     m_backend,
