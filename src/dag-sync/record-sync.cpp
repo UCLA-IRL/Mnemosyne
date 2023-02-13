@@ -19,12 +19,12 @@ mnemosyne::dag::RecordSync::RecordSync(const ndn::Name &syncPrefix,
                                        const ndn::svs::SecurityOptions &securityOptions)
         : SVSyncBase(syncPrefix, nodePrefix, nodePrefix,
                      face, updateCallback, securityOptions, make_shared<BackendDataStore>(std::move(backend))),
-                     m_face(face),
-                     m_hintPrefix(hintPrefix),
-                     m_fetcher(face, securityOptions) {
-    m_registerHintPrefix = m_face.registerPrefix(hintPrefix, [this](auto&&...){
+          m_face(face),
+          m_hintPrefix(hintPrefix),
+          m_fetcher(face, securityOptions) {
+    m_registerHintPrefix = m_face.registerPrefix(hintPrefix, [this](auto &&...) {
         m_registerFilterHandle = m_face.setInterestFilter("/", std::bind(&RecordSync::onDataInterest, this, _2));
-    }, [](auto&&...){
+    }, [](auto &&...) {
         NDN_LOG_FATAL("Error: Hint prefix registration failed");
     });
 
@@ -35,8 +35,8 @@ mnemosyne::dag::RecordSync::~RecordSync() {
     m_registerFilterHandle.cancel();
 }
 
-svs::SeqNo mnemosyne::dag::RecordSync::publishData(Record& record, const ndn::time::milliseconds& freshness,
-                                                   const svs::NodeID& id, uint32_t contentType) {
+svs::SeqNo mnemosyne::dag::RecordSync::publishData(Record &record, const ndn::time::milliseconds &freshness,
+                                                   const svs::NodeID &id, uint32_t contentType) {
     svs::NodeID pubId = id != EMPTY_NODE_ID ? id : m_id;
     svs::SeqNo newSeq = getCore().getSeqNo(pubId) + 1;
 
@@ -64,7 +64,7 @@ void mnemosyne::dag::RecordSync::fetchRecord(const svs::NodeID &nid, const svs::
                                              const svs::DataValidationErrorCallback &onValidationFailed,
                                              const TimeoutCallback &onTimeout) {
     fetchData(nid, seq, onValidated, onValidationFailed,
-              [this, nid, seq, onValidated, onValidationFailed, onTimeout, forwardingHintRetries](auto&&...){
+              [this, nid, seq, onValidated, onValidationFailed, onTimeout, forwardingHintRetries](auto &&...) {
                   fetchDataWithHint(nid, seq, onValidated, onValidationFailed, onTimeout, forwardingHintRetries);
               }, nRetries);
 }
@@ -80,12 +80,14 @@ void mnemosyne::dag::RecordSync::fetchDataWithHint(const svs::NodeID &nid, const
     interest.setInterestLifetime(ndn::time::milliseconds(2000));
 
     m_fetcher.expressInterest(interest,
-                              [this, onValidated](auto &&, auto && PH2) { onDataValidated(std::forward<decltype(PH2)>(PH2), onValidated); },
+                              [this, onValidated](auto &&, auto &&PH2) {
+                                  onDataValidated(std::forward<decltype(PH2)>(PH2), onValidated);
+                              },
                               std::bind(onTimeout, _1), // Nack
                               onTimeout, nRetries, onValidationFailed);
 }
 
-void mnemosyne::dag::RecordSync::onDataValidated(const Data& data, const svs::DataValidatedCallback& dataCallback) {
+void mnemosyne::dag::RecordSync::onDataValidated(const Data &data, const svs::DataValidatedCallback &dataCallback) {
     if (shouldCache(data))
         getDataStore().insert(data);
 
@@ -94,7 +96,7 @@ void mnemosyne::dag::RecordSync::onDataValidated(const Data& data, const svs::Da
 
 void mnemosyne::dag::RecordSync::onDataInterest(const Interest &interest) {
     if (interest.getForwardingHint().empty()) return;
-    for (const Name& hintName: interest.getForwardingHint()) {
+    for (const Name &hintName: interest.getForwardingHint()) {
         if (m_hintPrefix.isPrefixOf(hintName)) {
             NDN_LOG_INFO("Hinted face incoming: " << interest.getName());
             auto data = getDataStore().find(interest);
@@ -110,7 +112,7 @@ mnemosyne::dag::RecordSync::BackendDataStore::BackendDataStore(std::weak_ptr<Bac
 
 shared_ptr<const Data> mnemosyne::dag::RecordSync::BackendDataStore::find(const Interest &interest) {
     auto backend = m_backend.lock();
-    auto list = backend->listRecord(interest.getName(), interest.getCanBePrefix()? 1 : 0);
+    auto list = backend->listRecord(interest.getName(), interest.getCanBePrefix() ? 1 : 0);
     for (const auto &n: list) {
         if (!interest.getCanBePrefix() && n.size() > interest.getName().size() + 1) continue;
         return backend->getRecord(n);

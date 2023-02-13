@@ -9,7 +9,7 @@
 NDN_LOG_INIT(mnemosyne.interface.seenEventSet);
 
 mnemosyne::interface::SeenEventSet::SeenEventSet(std::chrono::seconds ttl)
-        : m_ttl(ttl){
+        : m_ttl(ttl) {
 
 }
 
@@ -32,7 +32,7 @@ void mnemosyne::interface::SeenEventSet::addEvent(const ndn::Name &eventName) {
 
 ndn::Block mnemosyne::interface::SeenEventSet::encode() const {
     ndn::Block b;
-    for (const auto& i : m_events) {
+    for (const auto &i: m_events) {
         b.push_back(i.wireEncode());
     }
     b.encode();
@@ -41,7 +41,7 @@ ndn::Block mnemosyne::interface::SeenEventSet::encode() const {
 
 void mnemosyne::interface::SeenEventSet::decode(const ndn::Block &b) {
     b.parse();
-    for (const auto& i : b.elements()) {
+    for (const auto &i: b.elements()) {
         addEvent(ndn::Name(i));
     }
 }

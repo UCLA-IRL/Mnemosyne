@@ -23,6 +23,7 @@ class DagReferenceChecker;
 
 namespace dag {
 class RecordSync;
+
 class ReplicationCounter;
 }
 
@@ -36,7 +37,7 @@ class MnemosyneDagLogger {
    */
     MnemosyneDagLogger(const LoggerConfig &config, std::shared_ptr<Backend> backend, security::KeyChain &keychain,
                        Face &network, std::shared_ptr<ndn::security::Validator> m_recordValidator,
-                       std::function<void(const Record&)> onRecordCallback = nullptr);
+                       std::function<void(const Record &)> onRecordCallback = nullptr);
 
     virtual ~MnemosyneDagLogger();
 
@@ -53,9 +54,9 @@ class MnemosyneDagLogger {
      */
     std::list<uint64_t> getReplicationSeqId() const;
 
-    const Name& getPeerPrefix() const;
+    const Name &getPeerPrefix() const;
 
-    void setOnRecordCallback(std::function<void(const Record&)> callback) {
+    void setOnRecordCallback(std::function<void(const Record &)> callback) {
         m_onRecordCallback = std::move(callback);
     }
 
@@ -64,13 +65,14 @@ class MnemosyneDagLogger {
     }
 
   private:
-    void onUpdate(const std::vector<ndn::svs::MissingDataInfo>& info);
+    void onUpdate(const std::vector<ndn::svs::MissingDataInfo> &info);
 
-    void addReceivedRecord(std::unique_ptr<Record> record, const Name& producer, svs::SeqNo seqId);
+    void addReceivedRecord(std::unique_ptr<Record> record, const Name &producer, svs::SeqNo seqId);
 
     bool versionBackupCallback();
 
-    static ndn::svs::SecurityOptions getSecurityOption(KeyChain& keychain, shared_ptr<ndn::security::Validator> recordValidator, Name peerPrefix);
+    static ndn::svs::SecurityOptions
+    getSecurityOption(KeyChain &keychain, shared_ptr<ndn::security::Validator> recordValidator, Name peerPrefix);
 
     static const std::string SEQ_NO_BACKUP_KEY;
 
@@ -82,7 +84,7 @@ class MnemosyneDagLogger {
     std::unique_ptr<dag::ReplicationCounter> m_replicationCounter;
     ndn::svs::VersionVector m_dagCollectedVersions;
     std::unique_ptr<dag::RecordSync> m_dagSync;
-    std::function<void(const Record&)> m_onRecordCallback;
+    std::function<void(const Record &)> m_onRecordCallback;
 
     std::unordered_map<Name, Name> m_lastRecordInChains;
 

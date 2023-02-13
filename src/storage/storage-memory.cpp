@@ -27,7 +27,7 @@ void StorageMemory::deleteRecord(const Name &recordName) {
 std::list<Name> StorageMemory::listRecord(const Name &prefix, uint32_t count) const {
     std::list<Name> names;
     for (auto it = m_recordStorage.lower_bound(prefix);
-            it != m_recordStorage.end() && prefix.isPrefixOf(it->first) && (count == 0 || names.size() < count); it++) {
+         it != m_recordStorage.end() && prefix.isPrefixOf(it->first) && (count == 0 || names.size() < count); it++) {
         names.emplace_back(it->first);
     }
     return names;

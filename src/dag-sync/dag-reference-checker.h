@@ -18,17 +18,17 @@ namespace mnemosyne {
 class DagReferenceChecker {
   public:
     DagReferenceChecker(std::weak_ptr<Backend> backend,
-                        std::function<void(std::unique_ptr <Record> , const Name& , svs::SeqNo)> readyRecordCallback);
+                        std::function<void(std::unique_ptr<Record>, const Name &, svs::SeqNo)> readyRecordCallback);
 
     //TODO add mechanism to check for dangling record (mostly by duplicate name+seqId)
-    void addRecord(std::unique_ptr<Record> record, const Name& name, svs::SeqNo seqId);
+    void addRecord(std::unique_ptr<Record> record, const Name &name, svs::SeqNo seqId);
 
   private:
-    void verifyPreviousRecord(std::unique_ptr<Record> record, const Name& producer, svs::SeqNo seqId);
+    void verifyPreviousRecord(std::unique_ptr<Record> record, const Name &producer, svs::SeqNo seqId);
 
   private:
     std::weak_ptr<Backend> m_backend;
-    std::function<void(std::unique_ptr <Record> , const Name& , svs::SeqNo)> m_readyRecordCallback;
+    std::function<void(std::unique_ptr<Record>, const Name &, svs::SeqNo)> m_readyRecordCallback;
     std::unordered_map<Name, std::tuple<std::unique_ptr<Record>, Name, svs::SeqNo>> m_waitingRecords;
     std::multimap<Name, Name> m_targetForWaitingRecords;
 };

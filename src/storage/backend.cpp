@@ -7,14 +7,13 @@
 #include <iostream>
 
 
-mnemosyne::Backend::Backend(const LoggerConfig& config)
-    : Backend(config.databaseType, config.databasePath, config.seqNoBackupFreq) {}
+mnemosyne::Backend::Backend(const LoggerConfig &config)
+        : Backend(config.databaseType, config.databasePath, config.seqNoBackupFreq) {}
 
 mnemosyne::Backend::Backend(const std::string &storage_type, const std::string &dbDir, uint32_t seqNoBackupFreq) :
         m_storage(storage::getStorage(storage_type, dbDir)),
         m_seqNoBackupFreq(seqNoBackupFreq),
-        m_lastSeqNoBackup(seqNoBackupFreq)
-{
+        m_lastSeqNoBackup(seqNoBackupFreq) {
     if (!m_storage) {
         std::cerr << "Backend: bad storage option\n";
         exit(1);
@@ -46,9 +45,9 @@ std::optional<std::string> mnemosyne::Backend::getMetaData(const std::string &ke
 }
 
 void mnemosyne::Backend::triggerBackup() {
-    m_lastSeqNoBackup ++;
+    m_lastSeqNoBackup++;
     if (m_lastSeqNoBackup >= m_seqNoBackupFreq) { // backup
-        for (auto& func : m_backUpCallbacks) {
+        for (auto &func: m_backUpCallbacks) {
             if (!func()) {
                 std::cerr << "Backend: metadata backup write failed\n";
                 exit(1);

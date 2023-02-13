@@ -19,7 +19,7 @@ class cxxValidator : public ndn::svs::BaseValidator {
   public:
 
     cxxValidator(std::shared_ptr<ndn::security::Validator> validator) :
-    m_validator(std::move(validator)) {
+            m_validator(std::move(validator)) {
 
     }
 
@@ -72,7 +72,8 @@ class alwaysFailValidator : public ndn::svs::BaseValidator {
     validate(const ndn::Data &data,
              const ndn::security::DataValidationSuccessCallback &successCb,
              const ndn::security::DataValidationFailureCallback &failureCb) {
-        failureCb(data, ndn::security::ValidationError(ndn::security::ValidationError::Code::INVALID_SIGNATURE, "No verification allowed"));
+        failureCb(data, ndn::security::ValidationError(ndn::security::ValidationError::Code::INVALID_SIGNATURE,
+                                                       "No verification allowed"));
     }
 
     /**
@@ -84,7 +85,8 @@ class alwaysFailValidator : public ndn::svs::BaseValidator {
     validate(const ndn::Interest &interest,
              const ndn::security::InterestValidationSuccessCallback &successCb,
              const ndn::security::InterestValidationFailureCallback &failureCb) {
-        failureCb(interest, ndn::security::ValidationError(ndn::security::ValidationError::Code::INVALID_SIGNATURE, "No verification allowed"));
+        failureCb(interest, ndn::security::ValidationError(ndn::security::ValidationError::Code::INVALID_SIGNATURE,
+                                                           "No verification allowed"));
     }
 
     virtual ~alwaysFailValidator() = default;
@@ -93,19 +95,21 @@ class alwaysFailValidator : public ndn::svs::BaseValidator {
 /**
  * A signer using an ndn-cxx keychain instance
  */
-  class KeyChainOptionSigner : public ndn::svs::BaseSigner {
+class KeyChainOptionSigner : public ndn::svs::BaseSigner {
   public:
-    KeyChainOptionSigner(ndn::KeyChain& keyChain, ndn::security::SigningInfo params) : m_keyChain(keyChain), m_params(std::move(params)) {}
+    KeyChainOptionSigner(ndn::KeyChain &keyChain, ndn::security::SigningInfo params) : m_keyChain(keyChain),
+                                                                                       m_params(std::move(params)) {}
 
     void
-    sign(ndn::Interest& interest) const;
+    sign(ndn::Interest &interest) const;
 
     void
-    sign(ndn::Data& data) const;
+    sign(ndn::Data &data) const;
 
     virtual ~KeyChainOptionSigner() = default;
+
   private:
-    ndn::KeyChain& m_keyChain;
+    ndn::KeyChain &m_keyChain;
     ndn::security::SigningInfo m_params;
 };
 

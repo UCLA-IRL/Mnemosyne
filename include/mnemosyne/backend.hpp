@@ -17,7 +17,8 @@ class Storage;
  */
 class Backend {
   public:
-    Backend(const LoggerConfig& config);
+    Backend(const LoggerConfig &config);
+
     Backend(const std::string &storage_type, const std::string &dbDir, uint32_t seqNoBackupFreq = 1);
 
   public:

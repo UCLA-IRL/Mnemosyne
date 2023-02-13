@@ -19,8 +19,7 @@ class LoggerConfig {
     inline LoggerConfig(ndn::Name multicastPrefix, ndn::Name hintPrefix, ndn::Name peerPrefix)
             : syncPrefix(std::move(multicastPrefix)),
               hintPrefix(std::move(hintPrefix)),
-              peerPrefix(std::move(peerPrefix))
-    {}
+              peerPrefix(std::move(peerPrefix)) {}
 
     /**
      *
@@ -28,7 +27,7 @@ class LoggerConfig {
      * @param dbConfig the config for the type. Typically path of the database.
      * @return the config object's pointer for chaining.
      */
-    LoggerConfig& setDatabase(std::string dbType, std::string dbConfig = "") {
+    LoggerConfig &setDatabase(std::string dbType, std::string dbConfig = "") {
         databaseType = std::move(dbType);
         databasePath = std::move(dbConfig);
         return *this;
@@ -54,7 +53,7 @@ class LoggerConfig {
     /**
      * max replication count, 0 mean off
      */
-     uint32_t maxCountedReplication = 1;
+    uint32_t maxCountedReplication = 1;
 
     /**
      * The multicast prefix, under which an Interest can reach to all the peers in the same multicast group.
@@ -63,7 +62,7 @@ class LoggerConfig {
     /**
      * The hint prefix, the multicast prefix used as forwarding hint in backup fetching
      */
-     Name hintPrefix;
+    Name hintPrefix;
     /**
      * Producer's unique name prefix, under which an Interest can reach to the producer.
      */

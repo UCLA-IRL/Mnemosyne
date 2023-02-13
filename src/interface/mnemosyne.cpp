@@ -17,11 +17,14 @@ namespace mnemosyne {
 const std::string Mnemosyne::SEEN_EVENT_BACKUP_KEY = "MnemosyneSeenEvent";
 
 
-Mnemosyne::Mnemosyne(const Config &config, KeyChain &keychain, Face &network, std::shared_ptr<ndn::security::Validator> recordValidator, std::shared_ptr<ndn::security::Validator> eventValidator) :
+Mnemosyne::Mnemosyne(const Config &config, KeyChain &keychain, Face &network,
+                     std::shared_ptr<ndn::security::Validator> recordValidator,
+                     std::shared_ptr<ndn::security::Validator> eventValidator) :
         m_config(config),
         m_keychain(keychain),
         m_backend(std::make_shared<Backend>(config.databaseType, config.databasePath, m_config.seqNoBackupFreq)),
-        m_dagSync(m_config, m_backend, keychain, network, std::move(recordValidator), [this](const auto &record) { onRecordUpdate(record); }),
+        m_dagSync(m_config, m_backend, keychain, network, std::move(recordValidator),
+                  [this](const auto &record) { onRecordUpdate(record); }),
         m_scheduler(network.getIoService()),
         m_eventValidator(std::move(eventValidator)),
         m_seenEvents(std::make_unique<interface::SeenEventSet>(config.seenEventTtl)),
@@ -45,7 +48,7 @@ Mnemosyne::Mnemosyne(const Config &config, KeyChain &keychain, Face &network, st
                          });
 
     onBackupRecovery();
-    m_backend->addBackupCallback([this](){return onBackup();});
+    m_backend->addBackupCallback([this]() { return onBackup(); });
 }
 
 void Mnemosyne::onBackupRecovery() {
@@ -62,7 +65,7 @@ void Mnemosyne::onBackupRecovery() {
     }
 }
 
-void Mnemosyne::onSubscriptionData(const svs::SVSPubSub::SubscriptionData& subData) {
+void Mnemosyne::onSubscriptionData(const svs::SVSPubSub::SubscriptionData &subData) {
     if (!subData.packet) {
         NDN_LOG_WARN("error");
         return;
@@ -70,18 +73,18 @@ void Mnemosyne::onSubscriptionData(const svs::SVSPubSub::SubscriptionData& subDa
     onEventData(*subData.packet, subData.producerPrefix, subData.seqNo);
 }
 
-void Mnemosyne::onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::MissingDataInfo>& info) {
+void Mnemosyne::onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::MissingDataInfo> &info) {
     if (!m_ready) return;
-    for (const auto& s : info) {
-        for (ndn::svs::SeqNo i = s.low; i < s.high; i ++) {
-            m_interfaceSyncs[groupId]->fetchData(s.nodeId, i, [this, s, i](const Data& data){
+    for (const auto &s: info) {
+        for (ndn::svs::SeqNo i = s.low; i < s.high; i++) {
+            m_interfaceSyncs[groupId]->fetchData(s.nodeId, i, [this, s, i](const Data &data) {
                 onEventData(data, s.nodeId, i);
             });
         }
     }
 }
 
-void Mnemosyne::onEventData(const Data& data, ndn::Name producer, ndn::svs::SeqNo seqId) {
+void Mnemosyne::onEventData(const Data &data, ndn::Name producer, ndn::svs::SeqNo seqId) {
     m_eventValidator->validate(data,
                                [this, producer, seqId](const Data &eventData) {
                                    std::uniform_int_distribution<uint32_t> delayDistribution(0,
@@ -110,17 +113,18 @@ ndn::svs::SecurityOptions Mnemosyne::getSecurityOption() {
     ndn::svs::SecurityOptions option(m_keychain);
     option.validator = make_shared<::util::cxxValidator>(m_eventValidator);
     option.encapsulatedDataValidator = option.validator;
-    option.dataSigner = std::make_shared<::util::KeyChainOptionSigner>(m_keychain, security::signingByIdentity(m_config.peerPrefix));
+    option.dataSigner = std::make_shared<::util::KeyChainOptionSigner>(m_keychain, security::signingByIdentity(
+            m_config.peerPrefix));
     option.interestSigner = option.dataSigner;
     option.pubSigner = option.dataSigner;
     return option;
 }
 
-void Mnemosyne::onRecordUpdate(const Record& record) {
-    m_eventValidator->validate(record.getContentData().value(), [&](const auto& eventData){
-        const auto& eventFullName = eventData.getFullName();
+void Mnemosyne::onRecordUpdate(const Record &record) {
+    m_eventValidator->validate(record.getContentData().value(), [&](const auto &eventData) {
+        const auto &eventFullName = eventData.getFullName();
         m_seenEvents->addEvent(eventFullName);
-    }, [](const auto& data, const auto& error){
+    }, [](const auto &data, const auto &error) {
         NDN_LOG_INFO("Verification error on event record " << data.getFullName() << ": " << error);
     });
 }
@@ -128,7 +132,7 @@ void Mnemosyne::onRecordUpdate(const Record& record) {
 bool Mnemosyne::onBackup() {
     auto b = m_seenEvents->encode();
     b.encode();
-    std::string page((const char *)b.wire(), b.size());
+    std::string page((const char *) b.wire(), b.size());
     if (m_backend->placeMetaData(SEEN_EVENT_BACKUP_KEY, page)) {
         std::cerr << "Backend: seen event metadata backup write success\n";
         return true;

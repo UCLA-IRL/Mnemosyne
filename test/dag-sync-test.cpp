@@ -15,7 +15,7 @@ using namespace mnemosyne;
 std::random_device rd;  //Will be used to obtain a seed for the random number engine
 std::mt19937 random_gen(rd()); //Standard mersenne_twister_engine seeded with rd()
 
-void periodicAddRecord(KeyChain& keychain, shared_ptr<MnemosyneDagLogger> ledger, Scheduler &scheduler) {
+void periodicAddRecord(KeyChain &keychain, shared_ptr<MnemosyneDagLogger> ledger, Scheduler &scheduler) {
     std::uniform_int_distribution<int> distribution(0, INT_MAX);
     Data data("/a/b/" + std::to_string(distribution(random_gen)));
     data.setContent(makeStringBlock(tlv::Content, std::to_string(distribution(random_gen))));
@@ -25,7 +25,8 @@ void periodicAddRecord(KeyChain& keychain, shared_ptr<MnemosyneDagLogger> ledger
     ledger->createRecord(record);
 
     // schedule for the next record generation
-    scheduler.schedule(time::milliseconds(100), [&keychain, ledger, &scheduler] { periodicAddRecord(keychain, ledger, scheduler); });
+    scheduler.schedule(time::milliseconds(100),
+                       [&keychain, ledger, &scheduler] { periodicAddRecord(keychain, ledger, scheduler); });
 }
 
 int main(int argc, char **argv) {
@@ -41,7 +42,8 @@ int main(int argc, char **argv) {
     std::shared_ptr<ndn::security::Validator> validator;
     std::shared_ptr<Backend> backend;
     try {
-        config = std::make_shared<LoggerConfig>("/ndn/broadcast/mnemosyne-dag", "/ndn/broadcast/mnemosyne-hint", identity);
+        config = std::make_shared<LoggerConfig>("/ndn/broadcast/mnemosyne-dag", "/ndn/broadcast/mnemosyne-hint",
+                                                identity);
         config->setDatabase("leveldb", std::string("/tmp/mnemosyne-db/" + identity.substr(identity.rfind('/'))));
         auto configValidator = std::make_shared<ndn::security::ValidatorConfig>(face);
         configValidator->load("./test/loggers.schema");
@@ -57,7 +59,8 @@ int main(int argc, char **argv) {
     auto ledger = std::shared_ptr<MnemosyneDagLogger>(ledger_ptr);
 
     Scheduler scheduler(ioService);
-    scheduler.schedule(time::seconds(5), [&keychain, ledger, &scheduler] { periodicAddRecord(keychain, ledger, scheduler); });
+    scheduler.schedule(time::seconds(5),
+                       [&keychain, ledger, &scheduler] { periodicAddRecord(keychain, ledger, scheduler); });
 
     face.processEvents();
     return 0;

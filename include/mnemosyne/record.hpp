@@ -17,12 +17,18 @@ namespace mnemosyne {
 class Record {
   public:
     //Name related functions
-    static bool isRecordName(const Name& recordName);
-    static bool isGenesisRecord(const Name& recordName);
-    static Name getProducerPrefix(const Name& recordName);
-    static uint64_t getRecordSeqId(const Name& recordName);
+    static bool isRecordName(const Name &recordName);
+
+    static bool isGenesisRecord(const Name &recordName);
+
+    static Name getProducerPrefix(const Name &recordName);
+
+    static uint64_t getRecordSeqId(const Name &recordName);
+
     static Name getRecordName(Name producerName, const uint64_t seq_id);
-    static Name getGenesisRecordFullName(const Name& recordName);
+
+    static Name getGenesisRecordFullName(const Name &recordName);
+
   public: // used for preparing a new record before appending it into the DLedger
     Record() = default;
 
@@ -53,7 +59,7 @@ class Record {
     /**
      * Get record payload.
      */
-    const optional<Data> & getContentData() const;
+    const optional<Data> &getContentData() const;
 
     /**
      * Check whether the record body is empty or not.
@@ -104,6 +110,7 @@ class Record {
     inline std::shared_ptr<const Data> getEncodedData() const {
         return m_data;
     }
+
     inline void setEncodedData(std::shared_ptr<const Data> data) {
         m_data = data;
     }

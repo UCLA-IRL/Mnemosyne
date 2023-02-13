@@ -64,7 +64,8 @@ StorageLevelDb::listRecord(const Name &prefix, uint32_t count) const {
     std::list<Name> names;
     leveldb::Iterator *it = m_db->NewIterator(leveldb::ReadOptions());
     for (it->Seek(prefix.toUri(name::UriFormat::CANONICAL)); it->Valid() &&
-            prefix.isPrefixOf(Name(it->key().ToString())) && (count == 0 || names.size() < count); it->Next()) {
+                                                             prefix.isPrefixOf(Name(it->key().ToString())) &&
+                                                             (count == 0 || names.size() < count); it->Next()) {
         if (!it->key().ToString().empty() && it->key().ToString().at(0) == RECORD_PREFIX_CHAR)
             names.emplace_back(it->key().ToString());
     }

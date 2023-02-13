@@ -10,14 +10,14 @@
 NDN_LOG_INIT(mnemosyne.dagsync.replicationCounter);
 
 mnemosyne::dag::ReplicationCounter::ReplicationCounter(ndn::Name peerPrefix, uint32_t maxReference) :
-    m_peerPrefix(std::move(peerPrefix)),
-    m_maxReference(maxReference) {
+        m_peerPrefix(std::move(peerPrefix)),
+        m_maxReference(maxReference) {
 }
 
 std::list<uint64_t> mnemosyne::dag::ReplicationCounter::getCounts() const {
     std::list<uint64_t> ans;
     if (m_maxReference == 0) return ans;
-    for (const auto& i : m_locations) {
+    for (const auto &i: m_locations) {
         ans.push_back(i.first);
     }
     return ans;
@@ -27,7 +27,7 @@ void mnemosyne::dag::ReplicationCounter::recordUpdate(const mnemosyne::Record &r
     if (m_maxReference == 0) return;
     auto producer = Record::getProducerPrefix(record.getEncodedData()->getName());
     if (producer == m_peerPrefix) return;
-    for (const auto& i : record.getPointersFromHeader()) {
+    for (const auto &i: record.getPointersFromHeader()) {
         if (Record::getProducerPrefix(i) == m_peerPrefix) {
             auto seqId = Record::getRecordSeqId(i);
             if (!m_referencePoints.count(producer) || seqId > m_referencePoints.at(producer)) {

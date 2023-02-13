@@ -47,7 +47,7 @@ class RecordSync : public svs::SVSyncBase {
         return Record::getRecordName(nid, seqNo);
     }
 
-    svs::SeqNo publishData(Record& record, const ndn::time::milliseconds& freshness, const svs::NodeID& id,
+    svs::SeqNo publishData(Record &record, const ndn::time::milliseconds &freshness, const svs::NodeID &id,
                            uint32_t contentType);
 
     /**
@@ -62,11 +62,11 @@ class RecordSync : public svs::SVSyncBase {
      * @param onValidationFailed The callback when the retrieved packet failed validation.
      */
     void
-    fetchRecord(const ndn::svs::NodeID& nid, const ndn::svs::SeqNo& seq,
-              const ndn::svs::DataValidatedCallback& onValidated,
-              int nRetries = 0, int forwardingHintRetries = 1,
-                const ndn::svs::DataValidationErrorCallback& onValidationFailed = [] (auto&&...) {},
-                const TimeoutCallback& onTimeout = [] (auto&&...) {});
+    fetchRecord(const ndn::svs::NodeID &nid, const ndn::svs::SeqNo &seq,
+                const ndn::svs::DataValidatedCallback &onValidated,
+                int nRetries = 0, int forwardingHintRetries = 1,
+                const ndn::svs::DataValidationErrorCallback &onValidationFailed = [](auto &&...) {},
+                const TimeoutCallback &onTimeout = [](auto &&...) {});
 
     /**
      * @brief Retrieve a data packet with a particular seqNo from a session with the forwarding hint
@@ -79,18 +79,18 @@ class RecordSync : public svs::SVSyncBase {
      * @param nRetries The number of retries.
      */
     void
-    fetchDataWithHint(const ndn::svs::NodeID& nid, const ndn::svs::SeqNo& seq,
-              const ndn::svs::DataValidatedCallback& onValidated,
-              const ndn::svs::DataValidationErrorCallback& onValidationFailed,
-              const TimeoutCallback& onTimeout,
-              int nRetries = 0);
+    fetchDataWithHint(const ndn::svs::NodeID &nid, const ndn::svs::SeqNo &seq,
+                      const ndn::svs::DataValidatedCallback &onValidated,
+                      const ndn::svs::DataValidationErrorCallback &onValidationFailed,
+                      const TimeoutCallback &onTimeout,
+                      int nRetries = 0);
 
   private:
-    void onDataValidated(const Data& data, const svs::DataValidatedCallback& dataCallback);
+    void onDataValidated(const Data &data, const svs::DataValidatedCallback &dataCallback);
 
     void onDataInterest(const Interest &interest);
 
-    bool shouldCache(const Data& data) const override {
+    bool shouldCache(const Data &data) const override {
         return false;
     }
 

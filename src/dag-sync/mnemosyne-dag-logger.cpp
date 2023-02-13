@@ -27,20 +27,18 @@ MnemosyneDagLogger::MnemosyneDagLogger(const LoggerConfig &config,
                                        security::KeyChain &keychain,
                                        Face &network,
                                        std::shared_ptr<ndn::security::Validator> recordValidator,
-                                       std::function<void(const Record&)> onRecordCallback)
-        : m_config(config)
-        , m_backend(std::move(backend))
-        , m_dagReferenceChecker(std::make_unique<DagReferenceChecker>(m_backend,
-                                std::bind(&MnemosyneDagLogger::addReceivedRecord, this, _1, _2, _3)))
-        , m_replicationCounter(std::make_unique<dag::ReplicationCounter>(config.peerPrefix, config.maxCountedReplication))
-        , m_dagSync(make_unique<dag::RecordSync>(config.syncPrefix, config.peerPrefix, config.hintPrefix, network,
-                    [&](const auto& i){onUpdate(i);},
-                    m_backend,
-                    getSecurityOption(keychain, recordValidator, config.peerPrefix)))
-        , m_randomEngine(std::random_device()())
-        , m_KnownSelfSeqId(0)
-        , m_onRecordCallback(onRecordCallback)
-{
+                                       std::function<void(const Record &)> onRecordCallback)
+        : m_config(config), m_backend(std::move(backend)),
+          m_dagReferenceChecker(std::make_unique<DagReferenceChecker>(m_backend,
+                                                                      std::bind(&MnemosyneDagLogger::addReceivedRecord,
+                                                                                this, _1, _2, _3))),
+          m_replicationCounter(
+                  std::make_unique<dag::ReplicationCounter>(config.peerPrefix, config.maxCountedReplication)),
+          m_dagSync(make_unique<dag::RecordSync>(config.syncPrefix, config.peerPrefix, config.hintPrefix, network,
+                                                 [&](const auto &i) { onUpdate(i); },
+                                                 m_backend,
+                                                 getSecurityOption(keychain, recordValidator, config.peerPrefix))),
+          m_randomEngine(std::random_device()()), m_KnownSelfSeqId(0), m_onRecordCallback(onRecordCallback) {
     NDN_LOG_INFO("Mnemosyne Initialization Start");
 
     if (config.precedingRecordNum <= 1) {
@@ -54,7 +52,8 @@ MnemosyneDagLogger::MnemosyneDagLogger(const LoggerConfig &config,
     }
 
     if (!m_lastRecordInChains.count(m_config.peerPrefix)) {
-        m_lastRecordInChains[m_config.peerPrefix] = Record::getGenesisRecordFullName(Record::getRecordName(m_config.peerPrefix, 0));
+        m_lastRecordInChains[m_config.peerPrefix] = Record::getGenesisRecordFullName(
+                Record::getRecordName(m_config.peerPrefix, 0));
     }
 
     NDN_LOG_INFO("Mnemosyne Initialization Succeed");
@@ -76,7 +75,7 @@ void MnemosyneDagLogger::restoreRecordSyncVersionVector() {
 
     if (m_dagCollectedVersions.get(m_config.peerPrefix) == 0)
         m_dagCollectedVersions.set(m_config.peerPrefix, 0);
-    for (const auto& [producer, s] : m_dagCollectedVersions) {
+    for (const auto &[producer, s]: m_dagCollectedVersions) {
         auto seq = s;
         auto listed = m_backend->listRecord(Record::getRecordName(producer, seq), 1);
         if (producer != m_config.peerPrefix && listed.empty()) {
@@ -91,7 +90,7 @@ void MnemosyneDagLogger::restoreRecordSyncVersionVector() {
                 if (producer != m_config.peerPrefix && m_onRecordCallback) {
                     m_onRecordCallback(m_backend->getRecord(*l.begin()));
                 }
-                seq ++;
+                seq++;
                 m_lastRecordInChains[producer] = *l.begin();
             }
         }
@@ -102,8 +101,9 @@ void MnemosyneDagLogger::restoreRecordSyncVersionVector() {
             m_KnownSelfSeqId = seq;
         }
     }
-    NDN_LOG_INFO("STEP 1: attempted restoring sequence id to " << m_dagCollectedVersions.toStr() << " in the Mnemosyne Dag Sync");
-    m_backend->addBackupCallback([this](){return versionBackupCallback();});
+    NDN_LOG_INFO("STEP 1: attempted restoring sequence id to " << m_dagCollectedVersions.toStr()
+                                                               << " in the Mnemosyne Dag Sync");
+    m_backend->addBackupCallback([this]() { return versionBackupCallback(); });
 }
 
 void MnemosyneDagLogger::addPublicGenesisRecord() {
@@ -114,9 +114,9 @@ void MnemosyneDagLogger::addPublicGenesisRecord() {
         Name tempProducer = Name().appendNumber(i++);
         if (m_lastRecordInChains.count(tempProducer)) continue;
         m_lastRecordInChains.emplace(tempProducer, Record::getGenesisRecordFullName(Record::getRecordName(
-                        tempProducer, 0)));
+                tempProducer, 0)));
     }
-    NDN_LOG_INFO( i << " genesis records have been added to the Mnemosyne");
+    NDN_LOG_INFO(i << " genesis records have been added to the Mnemosyne");
 }
 
 MnemosyneDagLogger::~MnemosyneDagLogger() = default;
@@ -129,7 +129,9 @@ ReturnCode MnemosyneDagLogger::createRecord(Record &record) {
         return ReturnCode::timingError("Waiting for self record recovery");
     }
     if (m_lastRecordInChains.size() < m_config.precedingRecordNum) {
-        NDN_LOG_WARN("[MnemosyneDagLogger::createRecord] Not Enough Tailing Record: " << m_lastRecordInChains.size() << " < " << m_config.precedingRecordNum);
+        NDN_LOG_WARN(
+                "[MnemosyneDagLogger::createRecord] Not Enough Tailing Record: " << m_lastRecordInChains.size() << " < "
+                                                                                 << m_config.precedingRecordNum);
         return ReturnCode::notEnoughTailingRecord();
     }
 
@@ -141,7 +143,7 @@ ReturnCode MnemosyneDagLogger::createRecord(Record &record) {
     std::sample(m_lastRecordInChains.begin(), m_lastRecordInChains.end(),
                 std::back_inserter(recordList), m_config.precedingRecordNum - 1, m_randomEngine);
 
-    for (const auto &[p, tailRecord] : recordList) {
+    for (const auto &[p, tailRecord]: recordList) {
         record.addPointer(tailRecord);
         m_lastRecordInChains.erase(Record::getProducerPrefix(tailRecord));
         if (record.getPointersFromHeader().size() >= m_config.precedingRecordNum)
@@ -162,8 +164,8 @@ std::list<uint64_t> MnemosyneDagLogger::getReplicationSeqId() const {
     return re;
 }
 
-void MnemosyneDagLogger::onUpdate(const std::vector<ndn::svs::MissingDataInfo>& info) {
-    for (const auto& stream : info) {
+void MnemosyneDagLogger::onUpdate(const std::vector<ndn::svs::MissingDataInfo> &info) {
+    for (const auto &stream: info) {
         std::cerr << "Missing Data " << stream.nodeId << " " << stream.low << " " << stream.high << "\n";
         if (stream.nodeId == m_config.peerPrefix) {
             m_KnownSelfSeqId = std::max(m_KnownSelfSeqId, stream.high);
@@ -177,33 +179,36 @@ void MnemosyneDagLogger::onUpdate(const std::vector<ndn::svs::MissingDataInfo>& 
 
         for (svs::SeqNo i = lastNo; i <= stream.high; i++) {
             NDN_LOG_INFO("Fetching item " << stream.nodeId << " " << i);
-            m_dagSync->fetchRecord(stream.nodeId, i, [nodeId=stream.nodeId, i, this](const Data& data){
-                auto receivedData = std::make_shared<Data>(data);
-                try {
-                    auto receivedRecord = make_unique<Record>(receivedData);
-                    receivedRecord->checkPointerCount(m_config.precedingRecordNum);
-                    m_dagReferenceChecker->addRecord(std::move(receivedRecord), nodeId, i);
-                } catch (const std::exception& e) {
-                    NDN_LOG_ERROR("bad record received" << receivedData->getFullName() << ": " << e.what());
-                }
-            }, stream.nodeId == m_config.peerPrefix? 0 : m_config.recordFetchRetries,
-                       m_config.hintedFetchRetries,
-                       [](const Data& data, const ndn::security::ValidationError& error){
-                           NDN_LOG_ERROR("Verification error on Received record " << data.getFullName() << ": " << error.getInfo());
-                       }, [nodeId = stream.nodeId, i](auto& ...){
+            m_dagSync->fetchRecord(stream.nodeId, i, [nodeId = stream.nodeId, i, this](const Data &data) {
+                                       auto receivedData = std::make_shared<Data>(data);
+                                       try {
+                                           auto receivedRecord = make_unique<Record>(receivedData);
+                                           receivedRecord->checkPointerCount(m_config.precedingRecordNum);
+                                           m_dagReferenceChecker->addRecord(std::move(receivedRecord), nodeId, i);
+                                       } catch (const std::exception &e) {
+                                           NDN_LOG_ERROR("bad record received" << receivedData->getFullName() << ": " << e.what());
+                                       }
+                                   }, stream.nodeId == m_config.peerPrefix ? 0 : m_config.recordFetchRetries,
+                                   m_config.hintedFetchRetries,
+                                   [](const Data &data, const ndn::security::ValidationError &error) {
+                                       NDN_LOG_ERROR(
+                                               "Verification error on Received record " << data.getFullName() << ": "
+                                                                                        << error.getInfo());
+                                   }, [nodeId = stream.nodeId, i](auto &...) {
                         NDN_LOG_ERROR("Fetch timeout on Received record " << nodeId << " - Sequence Id " << i);
-            });
+                    });
         }
     }
 }
 
-void MnemosyneDagLogger::addReceivedRecord(std::unique_ptr<Record> record, const Name& producer, svs::SeqNo seqId) {
+void MnemosyneDagLogger::addReceivedRecord(std::unique_ptr<Record> record, const Name &producer, svs::SeqNo seqId) {
     NDN_LOG_INFO("Add record to ledger: " << record->getRecordFullName());
-    const shared_ptr<const Data>& recordData = record->getEncodedData();
+    const shared_ptr<const Data> &recordData = record->getEncodedData();
 
     //backend update
     if (m_dagCollectedVersions.get(producer) + 1 != seqId) {
-        NDN_LOG_WARN(" - previous version does not have continuous version vector with " << record->getRecordFullName());
+        NDN_LOG_WARN(
+                " - previous version does not have continuous version vector with " << record->getRecordFullName());
     }
     m_dagCollectedVersions.set(producer, seqId);
     m_backend->triggerBackup();
@@ -228,7 +233,7 @@ const Name &MnemosyneDagLogger::getPeerPrefix() const {
 bool MnemosyneDagLogger::versionBackupCallback() {
     auto backupPage = m_dagCollectedVersions.encode();
     backupPage.encode();
-    std::string page((const char *)backupPage.wire(), backupPage.size());
+    std::string page((const char *) backupPage.wire(), backupPage.size());
     if (m_backend->placeMetaData(SEQ_NO_BACKUP_KEY, page)) {
         std::cerr << "Backend: metadata backup write success\n";
         return true;
@@ -237,11 +242,14 @@ bool MnemosyneDagLogger::versionBackupCallback() {
     }
 }
 
-ndn::svs::SecurityOptions MnemosyneDagLogger::getSecurityOption(KeyChain& keychain, shared_ptr<ndn::security::Validator> recordValidator, Name peerPrefix) {
+ndn::svs::SecurityOptions
+MnemosyneDagLogger::getSecurityOption(KeyChain &keychain, shared_ptr<ndn::security::Validator> recordValidator,
+                                      Name peerPrefix) {
     ndn::svs::SecurityOptions option(keychain);
     option.validator = make_shared<::util::cxxValidator>(recordValidator);
     option.encapsulatedDataValidator = make_shared<::util::alwaysFailValidator>();
-    option.dataSigner = std::make_shared<::util::KeyChainOptionSigner>(keychain, security::signingByIdentity(peerPrefix));
+    option.dataSigner = std::make_shared<::util::KeyChainOptionSigner>(keychain,
+                                                                       security::signingByIdentity(peerPrefix));
     option.interestSigner = option.dataSigner;
     option.pubSigner = std::make_shared<ndn::svs::BaseSigner>();
     return option;

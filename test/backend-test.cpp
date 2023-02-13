@@ -6,41 +6,39 @@ using namespace mnemosyne;
 using namespace ndn;
 
 std::shared_ptr<ndn::Data>
-makeData(const std::string& name, const std::string& content)
-{
-  using namespace ndn;
-  using namespace std;
-  auto data = make_shared<Data>(ndn::Name(name));
-  data->setContent(make_span(reinterpret_cast<const uint8_t *>(content.data()), content.size()));
-  data->setSignatureInfo(SignatureInfo(tlv::SignatureSha256WithRsa));
-  data->setSignatureValue(ndn::encoding::makeEmptyBlock(tlv::SignatureValue).getBuffer());
-  data->wireEncode();
-  return data;
+makeData(const std::string &name, const std::string &content) {
+    using namespace ndn;
+    using namespace std;
+    auto data = make_shared<Data>(ndn::Name(name));
+    data->setContent(make_span(reinterpret_cast<const uint8_t *>(content.data()), content.size()));
+    data->setSignatureInfo(SignatureInfo(tlv::SignatureSha256WithRsa));
+    data->setSignatureValue(ndn::encoding::makeEmptyBlock(tlv::SignatureValue).getBuffer());
+    data->wireEncode();
+    return data;
 }
 
 bool
-testBackEnd(const std::string &type)
-{
-  auto backend = storage::getStorage(type, "/tmp/test.leveldb");
-  for (const auto &name : backend->listRecord("")) {
-      backend->deleteRecord(name);
-  }
-  auto data = makeData("/mnemosyne/12345", "content is 12345");
-  auto fullName = data->getFullName();
+testBackEnd(const std::string &type) {
+    auto backend = storage::getStorage(type, "/tmp/test.leveldb");
+    for (const auto &name: backend->listRecord("")) {
+        backend->deleteRecord(name);
+    }
+    auto data = makeData("/mnemosyne/12345", "content is 12345");
+    auto fullName = data->getFullName();
 
-  backend->putRecord(data);
+    backend->putRecord(data);
 
-  auto anotherRecord = backend->getRecord(fullName);
-  if (data == nullptr || anotherRecord == nullptr) {
-      return false;
-  }
-  return backend->listRecord(Name("/mnemosyne")).size() == 1 && data->wireEncode() == anotherRecord->wireEncode();
+    auto anotherRecord = backend->getRecord(fullName);
+    if (data == nullptr || anotherRecord == nullptr) {
+        return false;
+    }
+    return backend->listRecord(Name("/mnemosyne")).size() == 1 && data->wireEncode() == anotherRecord->wireEncode();
 }
 
 bool
 testBackEndList(const std::string &type) {
     auto backend = storage::getStorage(type, "/tmp/test-List.leveldb");
-    for (const auto &name : backend->listRecord("/")) {
+    for (const auto &name: backend->listRecord("/")) {
         backend->deleteRecord(name);
     }
     for (int i = 0; i < 10; i++) {
@@ -95,8 +93,7 @@ bool testMetaDataStore(const std::string &type) {
 }
 
 int
-main(int argc, char** argv)
-{
+main(int argc, char **argv) {
     auto success = testNameGet();
     if (!success) {
         std::cout << "testNameGet failed" << std::endl;
@@ -124,5 +121,5 @@ main(int argc, char** argv)
             std::cout << t << " testMetaDataStore with no errors" << std::endl;
         }
     }
-  return 0;
+    return 0;
 }

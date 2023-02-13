@@ -9,7 +9,7 @@
 
 namespace mnemosyne {
 
-bool Record::isRecordName(const Name& recordName) {
+bool Record::isRecordName(const Name &recordName) {
     int isFullName = !recordName.empty() && recordName.get(-1).isImplicitSha256Digest();
     if (recordName.size() < 2 + isFullName) return false;
     if (!recordName.get(-1 - isFullName).isNumber()) return false;
@@ -17,21 +17,21 @@ bool Record::isRecordName(const Name& recordName) {
     return s == "RECORD";
 }
 
-bool Record::isGenesisRecord(const Name& recordName) {
+bool Record::isGenesisRecord(const Name &recordName) {
     if (!isRecordName(recordName))
         NDN_THROW(std::runtime_error("Bad record name at isGenesisRecord: " + recordName.toUri()));
     int isFullName = !recordName.empty() && recordName.get(-1).isImplicitSha256Digest();
     return recordName.get(-1 - isFullName).toNumber() == 0;
 }
 
-Name Record::getProducerPrefix(const Name& recordName) {
+Name Record::getProducerPrefix(const Name &recordName) {
     if (!isRecordName(recordName))
         NDN_THROW(std::runtime_error("Bad record name at getProducerPrefix: " + recordName.toUri()));
     int isFullName = !recordName.empty() && recordName.get(-1).isImplicitSha256Digest();
     return recordName.getPrefix(-2 - isFullName);
 }
 
-uint64_t Record::getRecordSeqId(const Name& recordName) {
+uint64_t Record::getRecordSeqId(const Name &recordName) {
     if (!isRecordName(recordName))
         NDN_THROW(std::runtime_error("Bad record name at getRecordSeqId: " + recordName.toUri()));
     int isFullName = !recordName.empty() && recordName.get(-1).isImplicitSha256Digest();
@@ -42,7 +42,7 @@ Name Record::getRecordName(Name producerName, const uint64_t seq_id) {
     return std::move(producerName).append("RECORD").appendNumber(seq_id);
 }
 
-Name Record::getGenesisRecordFullName(const Name& recordName) {
+Name Record::getGenesisRecordFullName(const Name &recordName) {
     Data d(recordName);
     static ndn::KeyChain keychain;
     keychain.sign(d, security::signingWithSha256());
@@ -112,7 +112,7 @@ Record::wireEncode(Block &block) const {
 void
 Record::headerWireEncode(Block &block) const {
     auto header = makeEmptyBlock(T_RecordHeader);
-    for (const auto &pointer : m_recordPointers) {
+    for (const auto &pointer: m_recordPointers) {
         header.push_back(pointer.wireEncode());
     }
     header.parse();
@@ -127,7 +127,7 @@ Record::headerWireDecode(const Block &dataContent) {
     const auto &headerBlock = dataContent.get(T_RecordHeader);
     headerBlock.parse();
     Name pointer;
-    for (const auto &item : headerBlock.elements()) {
+    for (const auto &item: headerBlock.elements()) {
         if (item.type() == tlv::Name) {
             try {
                 pointer.wireDecode(item);
@@ -165,7 +165,7 @@ Record::checkPointerCount(uint32_t numPointers) const {
         throw std::runtime_error("Less preceding record than expected");
     }
 
-    std::set<Name> nameSet;
+    std::set < Name > nameSet;
     for (const auto &pointer: getPointersFromHeader()) {
         nameSet.insert(getProducerPrefix(pointer));
     }

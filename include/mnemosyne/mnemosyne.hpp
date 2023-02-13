@@ -33,15 +33,18 @@ class Mnemosyne {
     }
 
   private:
-    void onSubscriptionData(const svs::SVSPubSub::SubscriptionData& subData);
-    void onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::MissingDataInfo>& info);
-    void onEventData(const Data& data, ndn::Name producer, ndn::svs::SeqNo seqId);
+    void onSubscriptionData(const svs::SVSPubSub::SubscriptionData &subData);
+
+    void onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::MissingDataInfo> &info);
+
+    void onEventData(const Data &data, ndn::Name producer, ndn::svs::SeqNo seqId);
 
     ndn::svs::SecurityOptions getSecurityOption();
 
-    void onRecordUpdate(const Record& record);
+    void onRecordUpdate(const Record &record);
 
     void onBackupRecovery();
+
     bool onBackup();
 
     static const std::string SEEN_EVENT_BACKUP_KEY;
@@ -60,7 +63,7 @@ class Mnemosyne {
 
     std::list<svs::SVSPubSub> m_interfacePubSubs;
     std::vector<std::unique_ptr<svs::SVSync>> m_interfaceSyncs;
-  };
+};
 
 } // namespace mnemosyne
 

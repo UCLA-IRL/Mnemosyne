@@ -23,7 +23,7 @@ class ReplicationCounter {
 
     std::list<uint64_t> getCounts() const;
 
-    void recordUpdate(const Record& record);
+    void recordUpdate(const Record &record);
 
   private:
     std::set<std::pair<uint64_t, ndn::Name>> m_locations;

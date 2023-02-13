@@ -6,6 +6,7 @@
 
 #include <ndn-cxx/util/logger.hpp>
 #include <ndn-cxx/util/logging.hpp>
+
 NDN_LOG_INIT(mnemosyne.dagsync.refChecker);
 
 using namespace ndn;
@@ -52,7 +53,7 @@ void DagReferenceChecker::verifyPreviousRecord(std::unique_ptr<Record> record, c
         }
     }
 
-    for (auto&[name, p]: waitingList) {
+    for (auto &[name, p]: waitingList) {
         verifyPreviousRecord(std::move(std::get<0>(p)), std::get<1>(p), std::get<2>(p));
     }
 }
@@ -60,8 +61,8 @@ void DagReferenceChecker::verifyPreviousRecord(std::unique_ptr<Record> record, c
 DagReferenceChecker::DagReferenceChecker(std::weak_ptr<Backend> backend,
                                          std::function<void(std::unique_ptr<Record>, const Name &,
                                                             svs::SeqNo)> readyRecordCallback) :
-                                         m_backend(std::move(backend)),
-                                         m_readyRecordCallback(std::move(readyRecordCallback)) {
+        m_backend(std::move(backend)),
+        m_readyRecordCallback(std::move(readyRecordCallback)) {
 
 }
 
