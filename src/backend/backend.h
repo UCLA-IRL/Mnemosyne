@@ -35,21 +35,17 @@ class Backend {
      */
     std::list<Name> listRecord(const Name &prefix, uint32_t count = 0) const;
 
-    void seqNumSet(uint32_t group, const ndn::Name& producer, uint64_t val);
+    void seqNumSet(const ndn::Name& producer, uint64_t val);
 
-    const svs::VersionVector& seqNumGet(uint32_t group) const;
+    const svs::VersionVector& seqNumGet() const;
 
   private:
     std::shared_ptr<storage::Storage> m_storage;
-    std::map<uint32_t, ndn::svs::VersionVector> m_versionRecovery;
+    ndn::svs::VersionVector m_versionRecovery;
     uint32_t m_seqNoBackupFreq;
     uint32_t m_lastSeqNoBackup;
 
     static const std::string SEQ_NO_BACKUP_KEY;
-  public:
-    static const uint32_t DAG_SYNC_GROUP = 163;
-    static const uint32_t MNEMOSYNE_PS_GROUP = 165;
-    static const uint32_t LISTEN_GROUP = 167;
 };
 
 }  // namespace mnemosyne

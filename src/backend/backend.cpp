@@ -22,10 +22,7 @@ mnemosyne::Backend::Backend(const std::string &storage_type, const std::string &
     if (page) {
         try {
             ndn::Block block(make_span(reinterpret_cast<const uint8_t *>(page->data()), page->size()));
-            block.parse();
-            for (auto &b: block.elements()) {
-                m_versionRecovery[b.type()] = svs::VersionVector(b.blockFromValue());
-            }
+            m_versionRecovery = svs::VersionVector(block);
             std::cerr << "Backend: seq no recovery success\n";
         } catch (const std::exception &e) {
             std::cerr << "Backend: seq no recovery failed with exception: " << e.what() << "\n";
@@ -50,14 +47,11 @@ std::list<Name> mnemosyne::Backend::listRecord(const Name &prefix, uint32_t coun
     return m_storage->listRecord(prefix, count);
 }
 
-void mnemosyne::Backend::seqNumSet(uint32_t group, const ndn::Name& producer, uint64_t val) {
-    m_versionRecovery[group].set(producer, val);
+void mnemosyne::Backend::seqNumSet(const ndn::Name& producer, uint64_t val) {
+    m_versionRecovery.set(producer, val);
     m_lastSeqNoBackup ++;
     if (m_lastSeqNoBackup >= m_seqNoBackupFreq) { // backup
-        Block backupPage(1); // type doesn't matter
-        for (const auto& [group_id, vv]: m_versionRecovery) {
-            backupPage.push_back(encoding::makeBinaryBlock(group_id, vv.encode()));
-        }
+        auto backupPage = m_versionRecovery.encode();
         backupPage.encode();
         std::string page((const char *)backupPage.wire(), backupPage.size());
         if (m_storage->placeMetaData(SEQ_NO_BACKUP_KEY, page)) {
@@ -70,9 +64,6 @@ void mnemosyne::Backend::seqNumSet(uint32_t group, const ndn::Name& producer, ui
     }
 }
 
-const svs::VersionVector& mnemosyne::Backend::seqNumGet(uint32_t group) const {
-    static svs::VersionVector EMPTY_VV;
-    auto it = m_versionRecovery.find(group);
-    if (it == m_versionRecovery.end()) return EMPTY_VV;
-    return it->second;
+const svs::VersionVector& mnemosyne::Backend::seqNumGet() const {
+    return m_versionRecovery;
 }

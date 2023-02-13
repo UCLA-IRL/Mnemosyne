@@ -57,7 +57,7 @@ MnemosyneDagLogger::MnemosyneDagLogger(const LoggerConfig &config,
 }
 
 void MnemosyneDagLogger::restoreRecordSyncVersionVector() {
-    auto restored_vv = m_backend->seqNumGet(Backend::DAG_SYNC_GROUP);
+    auto restored_vv = m_backend->seqNumGet();
     if (restored_vv.get(m_config.peerPrefix) == 0)
         restored_vv.set(m_config.peerPrefix, 0);
     for (const auto& [producer, s] : restored_vv) {
@@ -78,7 +78,7 @@ void MnemosyneDagLogger::restoreRecordSyncVersionVector() {
         }
         m_dagSync->getCore().updateSeqNo(seq, producer);
         if (seq != s) {
-            m_backend->seqNumSet(Backend::DAG_SYNC_GROUP, producer, seq);
+            m_backend->seqNumSet(producer, seq);
         }
         restored_vv.set(producer, seq);
 
@@ -165,7 +165,7 @@ void MnemosyneDagLogger::onUpdate(const std::vector<ndn::svs::MissingDataInfo>& 
         if (stream.nodeId == m_config.peerPrefix) {
             m_KnownSelfSeqId = std::max(m_KnownSelfSeqId, stream.high);
         }
-        auto lastNo = m_backend->seqNumGet(Backend::DAG_SYNC_GROUP).get(stream.nodeId);
+        auto lastNo = m_backend->seqNumGet().get(stream.nodeId);
         if (lastNo >= stream.low) {
             NDN_LOG_INFO("Skipped in-backend item " << stream.nodeId << " " << stream.low);
         } else {
@@ -199,10 +199,10 @@ void MnemosyneDagLogger::addReceivedRecord(std::unique_ptr<Record> record, const
     const shared_ptr<const Data>& recordData = record->getEncodedData();
 
     //backend update
-    if (m_backend->seqNumGet(Backend::DAG_SYNC_GROUP).get(producer) + 1 != seqId) {
+    if (m_backend->seqNumGet().get(producer) + 1 != seqId) {
         NDN_LOG_WARN(" - previous version does not have continuous version vector with " << record->getRecordFullName());
     }
-    m_backend->seqNumSet(Backend::DAG_SYNC_GROUP, producer, seqId);
+    m_backend->seqNumSet(producer, seqId);
     m_backend->putRecord(recordData);
 
     //local update
