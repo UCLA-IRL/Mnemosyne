@@ -43,11 +43,12 @@ class Mnemosyne {
     MnemosyneDagLogger m_dagSync;
     Scheduler m_scheduler;
     std::shared_ptr<ndn::security::Validator> m_eventValidator;
+    //TODO persistence
     std::unique_ptr<interface::SeenEventSet> m_seenEvents;
     std::mt19937_64 m_randomEngine;
 
-    //TODO add a timer before start accepting records
-    //TODO persistence
+    bool m_ready;
+
     std::list<svs::SVSPubSub> m_interfacePubSubs;
     std::vector<std::unique_ptr<svs::SVSync>> m_interfaceSyncs;
   };

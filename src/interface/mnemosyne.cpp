@@ -19,17 +19,26 @@ Mnemosyne::Mnemosyne(const Config &config, KeyChain &keychain, Face &network, st
         m_dagSync(m_config, keychain, network, std::move(recordValidator)),
         m_scheduler(network.getIoService()),
         m_eventValidator(std::move(eventValidator)),
-        m_seenEvents(std::make_unique<interface::SeenEventSet>(config.seenEventTtl))
-{
-    for (const auto& psName: config.svsPubSubInterfacePrefixes) {
-        m_interfacePubSubs.emplace_back(psName, config.peerPrefix, network, [](const auto& i){}, getSecurityOption());
-        m_interfacePubSubs.back().subscribeToProducer(Name("/"), [this](const auto& d){ onSubscriptionData(d);});
+        m_seenEvents(std::make_unique<interface::SeenEventSet>(config.seenEventTtl)),
+        m_ready(false) {
+    for (const auto &psName: config.svsPubSubInterfacePrefixes) {
+        m_interfacePubSubs.emplace_back(psName, config.peerPrefix, network, [](const auto &i) {}, getSecurityOption());
     }
-    for (const auto& syncName: config.svsInterfacePrefixes) {
+    for (const auto &syncName: config.svsInterfacePrefixes) {
         m_interfaceSyncs.push_back(std::make_unique<svs::SVSync>(syncName, config.peerPrefix, network,
-                                   [this, groupId=m_interfaceSyncs.size()](const auto &d) { onSyncUpdate(groupId, d); }, getSecurityOption()));
+                                                                 [this, groupId = m_interfaceSyncs.size()](
+                                                                         const auto &d) { onSyncUpdate(groupId, d); },
+                                                                 getSecurityOption()));
     }
-    m_dagSync.setOnRecordCallback([&](const auto& record) {onRecordUpdate(record);});
+    m_dagSync.setOnRecordCallback([&](const auto &record) { onRecordUpdate(record); });
+
+    m_scheduler.schedule(time::nanoseconds(std::chrono::nanoseconds(config.startUpDelay).count()),
+                         [this]() {
+                             m_ready = true;
+                             for (auto &ps: m_interfacePubSubs) {
+                                 ps.subscribeToProducer(Name("/"), [this](const auto &d) { onSubscriptionData(d); });
+                             }
+                         });
 }
 
 void Mnemosyne::onSubscriptionData(const svs::SVSPubSub::SubscriptionData& subData) {
@@ -41,6 +50,7 @@ void Mnemosyne::onSubscriptionData(const svs::SVSPubSub::SubscriptionData& subDa
 }
 
 void Mnemosyne::onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::MissingDataInfo>& info) {
+    if (!m_ready) return;
     for (const auto& s : info) {
         for (ndn::svs::SeqNo i = s.low; i < s.high; i ++) {
             m_interfaceSyncs[groupId]->fetchData(s.nodeId, i, [this, s, i](const Data& data){
