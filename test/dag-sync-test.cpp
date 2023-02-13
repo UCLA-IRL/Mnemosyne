@@ -36,12 +36,11 @@ int main(int argc, char **argv) {
     boost::asio::io_service ioService;
     Face face(ioService);
     security::KeyChain keychain;
-    std::shared_ptr<Config> config = nullptr;
+    std::shared_ptr<LoggerConfig> config;
     std::shared_ptr<ndn::security::Validator> validator;
     try {
-        config = Config::CustomizedConfig("/ndn/broadcast/mnemosyne-dag", "/ndn/broadcast/mnemosyne", identity,
-                                          std::string("/tmp/mnemosyne-db/" + identity.substr(identity.rfind('/'))));
-        config->hintPrefix = "/ndn/broadcast/mnemosyne-hint";
+        config = std::make_shared<LoggerConfig>("/ndn/broadcast/mnemosyne-dag", "/ndn/broadcast/mnemosyne-hint", identity);
+        config->setDatabase("leveldb", std::string("/tmp/mnemosyne-db/" + identity.substr(identity.rfind('/'))));
         auto configValidator = std::make_shared<ndn::security::ValidatorConfig>(face);
         configValidator->load("./test/loggers.schema");
         validator = std::make_shared<ndn::security::ValidatorNull>();

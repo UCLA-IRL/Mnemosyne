@@ -18,11 +18,17 @@ Mnemosyne::Mnemosyne(const Config &config, KeyChain &keychain, Face &network, st
         m_keychain(keychain),
         m_dagSync(m_config, keychain, network, std::move(recordValidator)),
         m_scheduler(network.getIoService()),
-        m_interfacePS(config.interfacePrefix, config.peerPrefix, network, [](const auto& i){}, getSecurityOption()),
         m_eventValidator(std::move(eventValidator)),
         m_seenEvents(std::make_unique<interface::SeenEventSet>(config.seenEventTtl))
 {
-    m_interfacePS.subscribeToProducer(Name("/"), [&](const auto& d){ onSubscriptionData(d);});
+    for (const auto& psName: config.svsPubSubInterfacePrefixes) {
+        m_interfacePubSubs.emplace_back(psName, config.peerPrefix, network, [](const auto& i){}, getSecurityOption());
+        m_interfacePubSubs.back().subscribeToProducer(Name("/"), [this](const auto& d){ onSubscriptionData(d);});
+    }
+    for (const auto& syncName: config.svsInterfacePrefixes) {
+        m_interfaceSyncs.push_back(std::make_unique<svs::SVSync>(syncName, config.peerPrefix, network,
+                                   [this, groupId=m_interfaceSyncs.size()](const auto &d) { onSyncUpdate(groupId, d); }, getSecurityOption()));
+    }
     m_dagSync.setOnRecordCallback([&](const auto& record) {onRecordUpdate(record);});
 }
 
@@ -31,25 +37,42 @@ void Mnemosyne::onSubscriptionData(const svs::SVSPubSub::SubscriptionData& subDa
         NDN_LOG_WARN("error");
         return;
     }
-    m_eventValidator->validate(*subData.packet,
-                               [this, producer=subData.producerPrefix, seqId=subData.seqNo](const Data& eventData){
-        std::uniform_int_distribution<uint32_t> delayDistribution(0, m_config.insertBackoffMaxMs);
-        NDN_LOG_INFO("Received event data " << eventData.getFullName());
-        if (m_seenEvents->hasEvent(eventData.getFullName())) return;
-        m_scheduler.schedule(time::milliseconds(delayDistribution(m_randomEngine)), [this, eventData, producer, seqId]() {
-            if (m_seenEvents->hasEvent(eventData.getFullName())) {
-                NDN_LOG_INFO("Event data " << eventData.getFullName() << " found in DAG. ");
-                return;
-            } else {
-                NDN_LOG_INFO("Event data " << eventData.getFullName() << " not found in DAG. Publishing...");
-            }
-            Record record(eventData, producer, seqId);
-            m_dagSync.createRecord(record);
-        });
-    }, [](const Data& eventData, auto&& error){
-        NDN_LOG_ERROR("Event data " << eventData.getFullName() << " verification error: " << error);
-    });
+    onEventData(*subData.packet, subData.producerPrefix, subData.seqNo);
+}
 
+void Mnemosyne::onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::MissingDataInfo>& info) {
+    for (const auto& s : info) {
+        for (ndn::svs::SeqNo i = s.low; i < s.high; i ++) {
+            m_interfaceSyncs[groupId]->fetchData(s.nodeId, i, [this, s, i](const Data& data){
+                onEventData(data, s.nodeId, i);
+            });
+        }
+    }
+}
+
+void Mnemosyne::onEventData(const Data& data, ndn::Name producer, ndn::svs::SeqNo seqId) {
+    m_eventValidator->validate(data,
+                               [this, producer, seqId](const Data &eventData) {
+                                   std::uniform_int_distribution<uint32_t> delayDistribution(0,
+                                                                                             m_config.insertBackoffMaxMs);
+                                   NDN_LOG_INFO("Received event data " << eventData.getFullName());
+                                   if (m_seenEvents->hasEvent(eventData.getFullName())) return;
+                                   m_scheduler.schedule(time::milliseconds(delayDistribution(m_randomEngine)),
+                                                        [this, eventData, producer, seqId]() {
+                                                            if (m_seenEvents->hasEvent(eventData.getFullName())) {
+                                                                NDN_LOG_INFO("Event data " << eventData.getFullName()
+                                                                                           << " found in DAG. ");
+                                                                return;
+                                                            } else {
+                                                                NDN_LOG_INFO("Event data " << eventData.getFullName()
+                                                                                           << " not found in DAG. Publishing...");
+                                                            }
+                                                            Record record(eventData, producer, seqId);
+                                                            m_dagSync.createRecord(record);
+                                                        });
+                               }, [](const Data &eventData, auto &&error) {
+                NDN_LOG_ERROR("Event data " << eventData.getFullName() << " verification error: " << error);
+            });
 }
 
 ndn::svs::SecurityOptions Mnemosyne::getSecurityOption() {

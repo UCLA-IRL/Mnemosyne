@@ -1,68 +1,22 @@
 #ifndef MNEMOSYNE_INCLUDE_CONFIG_H_
 #define MNEMOSYNE_INCLUDE_CONFIG_H_
 
-#include "cert-manager.hpp"
-#include <ndn-cxx/face.hpp>
+#include "logger-config.hpp"
 #include <iostream>
+#include <utility>
 
-using namespace ndn;
 namespace mnemosyne {
 
-class Config {
+class Config: public LoggerConfig {
   public:
-
-    static shared_ptr<Config> CustomizedConfig(const std::string &multicastPrefix, const std::string &interfacePrefix, const std::string &peerPrefix,
-                                               const std::string &databasePath);
-
-    /**
-     * Construct a Config instance used for Mnemosyne initialization.
-     * @p multicastPrefix, input, the distributed ledger system's multicast prefix.
-     * @p peerPrefix, input, the unique prefix of the peer.
-     */
-    Config(const std::string &multicastPrefix, const std::string &interfacePrefix, const std::string &peerPrefix);
+    Config(ndn::Name multicastPrefix, ndn::Name hintPrefix, ndn::Name peerPrefix,
+           std::set<Name> PSPrefixes, std::set<Name> syncInterfacePrefixes = {})
+           : LoggerConfig(std::move(multicastPrefix), std::move(hintPrefix), std::move(peerPrefix)),
+             svsPubSubInterfacePrefixes(std::move(PSPrefixes)),
+             svsInterfacePrefixes(std::move(syncInterfacePrefixes))
+             {}
 
   public:
-    /**
-     * The number of preceding records that referenced by a later record.
-     */
-    size_t precedingRecordNum = 2;
-
-    /**
-     * The retries for fetching records.
-     */
-    int recordFetchRetries = 1;
-    int hintedFetchRetries = 2;
-
-    /**
-     * Frequency of helper sequence number backup
-     */
-    uint32_t seqNoBackupFreq = 10;
-
-    /**
-     * max replication count, 0 mean off
-     */
-     uint32_t maxCountedReplication = 1;
-
-    /**
-     * The multicast prefix, under which an Interest can reach to all the peers in the same multicast group.
-     */
-    Name syncPrefix;
-    /**
-     * The hint prefix, the multicast prefix used as forwarding hint in backup fetching
-     */
-     Name hintPrefix;
-    /**
-     * Producer's unique name prefix, under which an Interest can reach to the producer.
-     */
-    Name peerPrefix;
-    /**
-     * The Database type;
-     */
-    std::string databaseType = "leveldb";
-    /**
-     * The path to the Database;
-     */
-    std::string databasePath;
 
     /**
      * Interface only configs
@@ -72,7 +26,8 @@ class Config {
     /**
      * The interface pub/sub prefix, under which an publication can reach all Mnemosyne loggers.
      */
-    Name interfacePrefix;
+    std::set<Name> svsPubSubInterfacePrefixes;
+    std::set<Name> svsInterfacePrefixes;
 };
 
 } // namespace mnemosyne

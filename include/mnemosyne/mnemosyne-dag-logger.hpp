@@ -2,7 +2,7 @@
 #define MNEMOSYNE_MNEMOSYNE_DAG_SYNC_H_
 
 #include "record.hpp"
-#include "config.hpp"
+#include "logger-config.hpp"
 #include "return-code.hpp"
 #include <ndn-svs/svsync-shared.hpp>
 #include <ndn-cxx/security/key-chain.hpp>
@@ -34,7 +34,7 @@ class MnemosyneDagLogger {
    * @p keychain, input, the local NDN keychain instance
    * @p face, input, the localhost NDN face to send/receive NDN packets.
    */
-    MnemosyneDagLogger(const Config &config, security::KeyChain &keychain, Face &network, std::shared_ptr<ndn::security::Validator> m_recordValidator);
+    MnemosyneDagLogger(const LoggerConfig &config, security::KeyChain &keychain, Face &network, std::shared_ptr<ndn::security::Validator> m_recordValidator);
 
     virtual ~MnemosyneDagLogger();
 
@@ -87,7 +87,7 @@ class MnemosyneDagLogger {
 
   protected:
     uint64_t m_KnownSelfSeqId;
-    const Config m_config;
+    const LoggerConfig m_config;
     std::shared_ptr<Backend> m_backend;
     std::unique_ptr<DagReferenceChecker> m_dagReferenceChecker;
     std::unique_ptr<dag::ReplicationCounter> m_replicationCounter;

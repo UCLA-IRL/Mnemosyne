@@ -10,7 +10,6 @@
 #include <ndn-cxx/security/signing-helpers.hpp>
 #include <utility>
 #include <ndn-cxx/security/verification-helpers.hpp>
-#include <ndn-cxx/util/time.hpp>
 #include <ndn-cxx/util/logger.hpp>
 #include <ndn-cxx/util/logging.hpp>
 #include <algorithm>
@@ -22,7 +21,7 @@ NDN_LOG_INIT(mnemosyne.dagsync.impl);
 using namespace ndn;
 namespace mnemosyne {
 
-MnemosyneDagLogger::MnemosyneDagLogger(const Config &config,
+MnemosyneDagLogger::MnemosyneDagLogger(const LoggerConfig &config,
                                        security::KeyChain &keychain,
                                        Face &network,
                                        std::shared_ptr<ndn::security::Validator> recordValidator)

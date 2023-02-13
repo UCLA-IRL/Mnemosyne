@@ -39,7 +39,6 @@ set(MNEMOSYNE_LIB_SOURCE_FILES
         src/interface/seen-event-set.h
         src/interface/mnemosyne.cpp
         src/record.cpp
-        src/config.cpp
         src/util.cpp
         )
 # include

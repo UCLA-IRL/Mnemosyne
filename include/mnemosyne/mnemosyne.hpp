@@ -1,6 +1,7 @@
 #ifndef MNEMOSYNE_MNEMOSYNE_H_
 #define MNEMOSYNE_MNEMOSYNE_H_
 
+#include "config.hpp"
 #include "mnemosyne/mnemosyne-dag-logger.hpp"
 #include <ndn-svs/svspubsub.hpp>
 
@@ -21,7 +22,7 @@ class Mnemosyne {
      * @p recordValidator, a validator that validates records from other nodes
      * @p eventValidator, a validator that validates events from clients
      */
-    Mnemosyne(const Config &config, security::KeyChain &keychain, Face &network,
+    Mnemosyne(const mnemosyne::Config &config, security::KeyChain &keychain, Face &network,
               std::shared_ptr<ndn::security::Validator> recordValidator,
               std::shared_ptr<ndn::security::Validator> eventValidator);
 
@@ -29,6 +30,8 @@ class Mnemosyne {
 
   private:
     void onSubscriptionData(const svs::SVSPubSub::SubscriptionData& subData);
+    void onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::MissingDataInfo>& info);
+    void onEventData(const Data& data, ndn::Name producer, ndn::svs::SeqNo seqId);
 
     ndn::svs::SecurityOptions getSecurityOption();
 
@@ -38,16 +41,15 @@ class Mnemosyne {
     const Config m_config;
     security::KeyChain &m_keychain;
     MnemosyneDagLogger m_dagSync;
-    svs::SVSPubSub m_interfacePS;
     Scheduler m_scheduler;
     std::shared_ptr<ndn::security::Validator> m_eventValidator;
+    std::unique_ptr<interface::SeenEventSet> m_seenEvents;
+    std::mt19937_64 m_randomEngine;
 
     //TODO add a timer before start accepting records
     //TODO persistence
-    //TODO multi-interface
-    std::unique_ptr<interface::SeenEventSet> m_seenEvents;
-
-    std::mt19937_64 m_randomEngine;
+    std::list<svs::SVSPubSub> m_interfacePubSubs;
+    std::vector<std::unique_ptr<svs::SVSync>> m_interfaceSyncs;
   };
 
 } // namespace mnemosyne
