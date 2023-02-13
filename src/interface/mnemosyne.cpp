@@ -23,12 +23,12 @@ Mnemosyne::Mnemosyne(const Config &config, KeyChain &keychain, Face &network,
         m_config(config),
         m_keychain(keychain),
         m_backend(std::make_shared<Backend>(config.databaseType, config.databasePath, m_config.seqNoBackupFreq)),
-        m_dagSync(m_config, m_backend, keychain, network, std::move(recordValidator),
-                  [this](const auto &record) { onRecordUpdate(record); }),
         m_scheduler(network.getIoService()),
         m_eventValidator(std::move(eventValidator)),
         m_seenEvents(std::make_unique<interface::SeenEventSet>(config.seenEventTtl)),
-        m_ready(false) {
+        m_ready(false),
+        m_dagSync(m_config, m_backend, keychain, network, std::move(recordValidator),
+                  [this](const auto &record) { onRecordUpdate(record); }) {
     for (const auto &psName: config.svsPubSubInterfacePrefixes) {
         m_interfacePubSubs.emplace_back(psName, config.peerPrefix, network, [](const auto &i) {}, getSecurityOption());
     }
@@ -131,12 +131,12 @@ void Mnemosyne::onRecordUpdate(const Record &record) {
 
 bool Mnemosyne::onBackup() {
     auto b = m_seenEvents->encode();
-    b.encode();
     std::string page((const char *) b.wire(), b.size());
     if (m_backend->placeMetaData(SEEN_EVENT_BACKUP_KEY, page)) {
-        std::cerr << "Backend: seen event metadata backup write success\n";
+        NDN_LOG_INFO("Mnemosyne: seen event metadata backup write success");
         return true;
     } else {
+        NDN_LOG_INFO("Mnemosyne: seen event metadata backup write failure");
         return false;
     }
 }

@@ -50,10 +50,10 @@ int main(int argc, char* argv[]) {
     security::KeyChain keychain;
     std::shared_ptr<Config> config;
     try {
-        config = std::make_shared<Config>(vm["dag-sync-prefix"].as<Name>(),
-                                          vm["dag-hint-prefix"].as<Name>(),
+        config = std::make_shared<Config>(Name(vm["dag-sync-prefix"].as<std::string>()),
+                                          Name(vm["dag-hint-prefix"].as<std::string>()),
                                           Name(identity),
-                                          std::set({vm["interface-ps-prefix"].as<Name>()}));
+                                          std::set({Name(vm["interface-ps-prefix"].as<std::string>())}));
         config->setDatabase("leveldb", databasePath);
         mkdir("/tmp/mnemosyne-db/", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     }

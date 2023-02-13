@@ -1,7 +1,6 @@
 #ifndef MNEMOSYNE_INCLUDE_LOGGER_CONFIG_H_
 #define MNEMOSYNE_INCLUDE_LOGGER_CONFIG_H_
 
-#include "cert-manager.hpp"
 #include <ndn-cxx/face.hpp>
 #include <iostream>
 #include <utility>
@@ -58,15 +57,15 @@ class LoggerConfig {
     /**
      * The multicast prefix, under which an Interest can reach to all the peers in the same multicast group.
      */
-    Name syncPrefix;
+    ndn::Name syncPrefix;
     /**
      * The hint prefix, the multicast prefix used as forwarding hint in backup fetching
      */
-    Name hintPrefix;
+    ndn::Name hintPrefix;
     /**
      * Producer's unique name prefix, under which an Interest can reach to the producer.
      */
-    Name peerPrefix;
+    ndn::Name peerPrefix;
     /**
      * The Database type;
      */

@@ -29,6 +29,8 @@ class SeenEventSet {
     std::set<ndn::Name> m_events;
     ndn::Name m_peerPrefix;
     std::chrono::seconds m_ttl;
+
+    static const uint32_t SEEN_EVENT_TYPE;
 };
 
 }

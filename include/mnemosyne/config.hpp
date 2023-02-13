@@ -5,6 +5,7 @@
 #include <iostream>
 #include <utility>
 
+using namespace ndn;
 namespace mnemosyne {
 
 class Config : public LoggerConfig {

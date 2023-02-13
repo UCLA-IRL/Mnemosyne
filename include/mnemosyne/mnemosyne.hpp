@@ -50,19 +50,24 @@ class Mnemosyne {
     static const std::string SEEN_EVENT_BACKUP_KEY;
 
   protected:
-    const Config m_config;
-    std::shared_ptr<Backend> m_backend;
-    security::KeyChain &m_keychain;
-    MnemosyneDagLogger m_dagSync;
-    Scheduler m_scheduler;
-    std::shared_ptr<ndn::security::Validator> m_eventValidator;
-    std::unique_ptr<interface::SeenEventSet> m_seenEvents;
-    std::mt19937_64 m_randomEngine;
 
-    bool m_ready;
 
+    //interfaces
     std::list<svs::SVSPubSub> m_interfacePubSubs;
     std::vector<std::unique_ptr<svs::SVSync>> m_interfaceSyncs;
+
+    //internal auxiliary/state
+    bool m_ready;
+    const Config m_config;
+    security::KeyChain &m_keychain;
+    Scheduler m_scheduler;
+    std::mt19937_64 m_randomEngine;
+
+    //lower level components
+    std::shared_ptr<Backend> m_backend;
+    std::shared_ptr<ndn::security::Validator> m_eventValidator;
+    std::unique_ptr<interface::SeenEventSet> m_seenEvents;
+    MnemosyneDagLogger m_dagSync;
 };
 
 } // namespace mnemosyne
