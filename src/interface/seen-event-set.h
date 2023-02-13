@@ -20,6 +20,9 @@ class SeenEventSet {
 
     void addEvent(const ndn::Name& eventName);
 
+    ndn::Block encode() const;
+    void decode(const ndn::Block& b);
+
   private:
     std::queue<std::pair<std::chrono::time_point<std::chrono::system_clock>, ndn::Name>> m_locations;
     std::set<ndn::Name> m_events;

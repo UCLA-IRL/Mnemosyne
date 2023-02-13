@@ -32,6 +32,7 @@ mnemosyne::Backend::Backend(const std::string &storage_type, const std::string &
             exit(1);
         }
     }
+    addBackupCallback([this](){return versionRecoverCallback();});
 }
 
 shared_ptr<const Data> mnemosyne::Backend::getRecord(const Name &recordName) const {
@@ -50,20 +51,37 @@ std::list<Name> mnemosyne::Backend::listRecord(const Name &prefix, uint32_t coun
     return m_storage->listRecord(prefix, count);
 }
 
+bool mnemosyne::Backend::placeMetaData(std::string key, const std::string &value) {
+    return m_storage->placeMetaData(std::move(key), value);
+}
+
+std::optional<std::string> mnemosyne::Backend::getMetaData(const std::string &key) const {
+    return m_storage->getMetaData(key);
+}
+
 void mnemosyne::Backend::seqNumSet(const ndn::Name& producer, uint64_t val) {
     m_versionRecovery.set(producer, val);
     m_lastSeqNoBackup ++;
     if (m_lastSeqNoBackup >= m_seqNoBackupFreq) { // backup
-        auto backupPage = m_versionRecovery.encode();
-        backupPage.encode();
-        std::string page((const char *)backupPage.wire(), backupPage.size());
-        if (m_storage->placeMetaData(SEQ_NO_BACKUP_KEY, page)) {
-            std::cerr << "Backend: metadata backup write success\n";
-            m_lastSeqNoBackup = 0;
-        } else {
-            std::cerr << "Backend: metadata backup write failed\n";
-            exit(1);
+        for (auto& func : m_backUpCallbacks) {
+            if (!func()) {
+                std::cerr << "Backend: metadata backup write failed\n";
+                exit(1);
+            }
         }
+        m_lastSeqNoBackup = 0;
+    }
+}
+
+bool mnemosyne::Backend::versionRecoverCallback() {
+    auto backupPage = m_versionRecovery.encode();
+    backupPage.encode();
+    std::string page((const char *)backupPage.wire(), backupPage.size());
+    if (m_storage->placeMetaData(SEQ_NO_BACKUP_KEY, page)) {
+        std::cerr << "Backend: metadata backup write success\n";
+        return true;
+    } else {
+        return false;
     }
 }
 

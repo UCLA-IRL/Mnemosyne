@@ -14,6 +14,9 @@ using namespace ndn;
 namespace mnemosyne {
 
 
+const std::string Mnemosyne::SEEN_EVENT_BACKUP_KEY = "MnemosyneSeenEvent";
+
+
 Mnemosyne::Mnemosyne(const Config &config, KeyChain &keychain, Face &network, std::shared_ptr<ndn::security::Validator> recordValidator, std::shared_ptr<ndn::security::Validator> eventValidator) :
         m_config(config),
         m_keychain(keychain),
@@ -41,6 +44,23 @@ Mnemosyne::Mnemosyne(const Config &config, KeyChain &keychain, Face &network, st
                                  ps.subscribeToProducer(Name("/"), [this](const auto &d) { onSubscriptionData(d); });
                              }
                          });
+
+    onBackupRecovery();
+    m_backend->addBackupCallback([this](){return onBackup();});
+}
+
+void Mnemosyne::onBackupRecovery() {
+    auto s = m_backend->getMetaData(SEEN_EVENT_BACKUP_KEY);
+    if (s) {
+        try {
+            ndn::Block block(make_span(reinterpret_cast<const uint8_t *>(s->data()), s->size()));
+            m_seenEvents->decode(block);
+            std::cerr << "Backend: seen event recovery success\n";
+        } catch (const std::exception &e) {
+            std::cerr << "Backend: seen event recovery failed with exception: " << e.what() << "\n";
+            exit(1);
+        }
+    }
 }
 
 void Mnemosyne::onSubscriptionData(const svs::SVSPubSub::SubscriptionData& subData) {
@@ -104,6 +124,18 @@ void Mnemosyne::onRecordUpdate(const Record& record) {
     }, [](const auto& data, const auto& error){
         NDN_LOG_INFO("Verification error on event record " << data.getFullName() << ": " << error);
     });
+}
+
+bool Mnemosyne::onBackup() {
+    auto b = m_seenEvents->encode();
+    b.encode();
+    std::string page((const char *)b.wire(), b.size());
+    if (m_backend->placeMetaData(SEEN_EVENT_BACKUP_KEY, page)) {
+        std::cerr << "Backend: seen event metadata backup write success\n";
+        return true;
+    } else {
+        return false;
+    }
 }
 
 Mnemosyne::~Mnemosyne() = default;

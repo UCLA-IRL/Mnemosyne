@@ -29,3 +29,19 @@ void mnemosyne::interface::SeenEventSet::addEvent(const ndn::Name &eventName) {
         } else break;
     }
 }
+
+ndn::Block mnemosyne::interface::SeenEventSet::encode() const {
+    ndn::Block b;
+    for (const auto& i : m_events) {
+        b.push_back(i.wireEncode());
+    }
+    b.encode();
+    return b;
+}
+
+void mnemosyne::interface::SeenEventSet::decode(const ndn::Block &b) {
+    b.parse();
+    for (const auto& i : b.elements()) {
+        addEvent(ndn::Name(i));
+    }
+}

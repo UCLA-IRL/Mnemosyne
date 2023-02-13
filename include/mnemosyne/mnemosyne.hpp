@@ -41,6 +41,11 @@ class Mnemosyne {
 
     void onRecordUpdate(const Record& record);
 
+    void onBackupRecovery();
+    bool onBackup();
+
+    static const std::string SEEN_EVENT_BACKUP_KEY;
+
   protected:
     const Config m_config;
     std::shared_ptr<Backend> m_backend;
