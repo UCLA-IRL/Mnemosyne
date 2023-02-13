@@ -44,27 +44,18 @@ class Backend {
 
     std::optional<std::string> getMetaData(const std::string &key) const;
 
-    void seqNumSet(const ndn::Name& producer, uint64_t val);
-
-    const svs::VersionVector& seqNumGet() const;
+    void triggerBackup();
 
     inline void addBackupCallback(std::function<bool()> callback) {
         m_backUpCallbacks.push_back(std::move(callback));
     }
 
   private:
-    bool versionRecoverCallback();
-
-  private:
     std::shared_ptr<storage::Storage> m_storage;
-    //TODO separate out version vector
-    ndn::svs::VersionVector m_versionRecovery;
     uint32_t m_seqNoBackupFreq;
     uint32_t m_lastSeqNoBackup;
 
     std::vector<std::function<bool()>> m_backUpCallbacks;
-
-    static const std::string SEQ_NO_BACKUP_KEY;
 };
 
 }  // namespace mnemosyne

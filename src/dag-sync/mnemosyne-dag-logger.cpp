@@ -1,6 +1,5 @@
 #include "mnemosyne/mnemosyne-dag-logger.hpp"
 
-#include "mnemosyne/backend.hpp"
 #include "dag-sync/dag-reference-checker.h"
 #include "dag-sync/replication-counter.h"
 #include "dag-sync/record-sync.h"
@@ -20,6 +19,8 @@ NDN_LOG_INIT(mnemosyne.dagsync.impl);
 
 using namespace ndn;
 namespace mnemosyne {
+
+const std::string MnemosyneDagLogger::SEQ_NO_BACKUP_KEY = "SeqNoBackup";
 
 MnemosyneDagLogger::MnemosyneDagLogger(const LoggerConfig &config,
                                        std::shared_ptr<Backend> backend,
@@ -60,10 +61,22 @@ MnemosyneDagLogger::MnemosyneDagLogger(const LoggerConfig &config,
 }
 
 void MnemosyneDagLogger::restoreRecordSyncVersionVector() {
-    auto restored_vv = m_backend->seqNumGet();
-    if (restored_vv.get(m_config.peerPrefix) == 0)
-        restored_vv.set(m_config.peerPrefix, 0);
-    for (const auto& [producer, s] : restored_vv) {
+    //attempt recovery
+    auto page = m_backend->getMetaData(SEQ_NO_BACKUP_KEY);
+    if (page) {
+        try {
+            ndn::Block block(make_span(reinterpret_cast<const uint8_t *>(page->data()), page->size()));
+            m_dagCollectedVersions = svs::VersionVector(block);
+            std::cerr << "Backend: seq no recovery success\n";
+        } catch (const std::exception &e) {
+            std::cerr << "Backend: seq no recovery failed with exception: " << e.what() << "\n";
+            exit(1);
+        }
+    }
+
+    if (m_dagCollectedVersions.get(m_config.peerPrefix) == 0)
+        m_dagCollectedVersions.set(m_config.peerPrefix, 0);
+    for (const auto& [producer, s] : m_dagCollectedVersions) {
         auto seq = s;
         auto listed = m_backend->listRecord(Record::getRecordName(producer, seq), 1);
         if (producer != m_config.peerPrefix && listed.empty()) {
@@ -83,16 +96,14 @@ void MnemosyneDagLogger::restoreRecordSyncVersionVector() {
             }
         }
         m_dagSync->getCore().updateSeqNo(seq, producer);
-        if (seq != s) {
-            m_backend->seqNumSet(producer, seq);
-        }
-        restored_vv.set(producer, seq);
+        m_dagCollectedVersions.set(producer, seq);
 
         if (producer == m_config.peerPrefix) {
             m_KnownSelfSeqId = seq;
         }
     }
-    NDN_LOG_INFO("STEP 1: attempted restoring sequence id to " << restored_vv.toStr() << " in the Mnemosyne Dag Sync");
+    NDN_LOG_INFO("STEP 1: attempted restoring sequence id to " << m_dagCollectedVersions.toStr() << " in the Mnemosyne Dag Sync");
+    m_backend->addBackupCallback([this](){return versionBackupCallback();});
 }
 
 void MnemosyneDagLogger::addPublicGenesisRecord() {
@@ -157,7 +168,7 @@ void MnemosyneDagLogger::onUpdate(const std::vector<ndn::svs::MissingDataInfo>& 
         if (stream.nodeId == m_config.peerPrefix) {
             m_KnownSelfSeqId = std::max(m_KnownSelfSeqId, stream.high);
         }
-        auto lastNo = m_backend->seqNumGet().get(stream.nodeId);
+        auto lastNo = m_dagCollectedVersions.get(stream.nodeId);
         if (lastNo >= stream.low) {
             NDN_LOG_INFO("Skipped in-backend item " << stream.nodeId << " " << stream.low);
         } else {
@@ -191,10 +202,11 @@ void MnemosyneDagLogger::addReceivedRecord(std::unique_ptr<Record> record, const
     const shared_ptr<const Data>& recordData = record->getEncodedData();
 
     //backend update
-    if (m_backend->seqNumGet().get(producer) + 1 != seqId) {
+    if (m_dagCollectedVersions.get(producer) + 1 != seqId) {
         NDN_LOG_WARN(" - previous version does not have continuous version vector with " << record->getRecordFullName());
     }
-    m_backend->seqNumSet(producer, seqId);
+    m_dagCollectedVersions.set(producer, seqId);
+    m_backend->triggerBackup();
     m_backend->putRecord(recordData);
 
     //local update
@@ -211,6 +223,18 @@ void MnemosyneDagLogger::addReceivedRecord(std::unique_ptr<Record> record, const
 
 const Name &MnemosyneDagLogger::getPeerPrefix() const {
     return m_config.peerPrefix;
+}
+
+bool MnemosyneDagLogger::versionBackupCallback() {
+    auto backupPage = m_dagCollectedVersions.encode();
+    backupPage.encode();
+    std::string page((const char *)backupPage.wire(), backupPage.size());
+    if (m_backend->placeMetaData(SEQ_NO_BACKUP_KEY, page)) {
+        std::cerr << "Backend: metadata backup write success\n";
+        return true;
+    } else {
+        return false;
+    }
 }
 
 ndn::svs::SecurityOptions MnemosyneDagLogger::getSecurityOption(KeyChain& keychain, shared_ptr<ndn::security::Validator> recordValidator, Name peerPrefix) {

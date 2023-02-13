@@ -6,7 +6,6 @@
 #include "storage/storage-leveldb.h"
 #include <iostream>
 
-const std::string mnemosyne::Backend::SEQ_NO_BACKUP_KEY = "SeqNoBackup";
 
 mnemosyne::Backend::Backend(const LoggerConfig& config)
     : Backend(config.databaseType, config.databasePath, config.seqNoBackupFreq) {}
@@ -20,19 +19,6 @@ mnemosyne::Backend::Backend(const std::string &storage_type, const std::string &
         std::cerr << "Backend: bad storage option\n";
         exit(1);
     }
-    //attempt recovery
-    auto page = m_storage->getMetaData(SEQ_NO_BACKUP_KEY);
-    if (page) {
-        try {
-            ndn::Block block(make_span(reinterpret_cast<const uint8_t *>(page->data()), page->size()));
-            m_versionRecovery = svs::VersionVector(block);
-            std::cerr << "Backend: seq no recovery success\n";
-        } catch (const std::exception &e) {
-            std::cerr << "Backend: seq no recovery failed with exception: " << e.what() << "\n";
-            exit(1);
-        }
-    }
-    addBackupCallback([this](){return versionRecoverCallback();});
 }
 
 shared_ptr<const Data> mnemosyne::Backend::getRecord(const Name &recordName) const {
@@ -59,8 +45,7 @@ std::optional<std::string> mnemosyne::Backend::getMetaData(const std::string &ke
     return m_storage->getMetaData(key);
 }
 
-void mnemosyne::Backend::seqNumSet(const ndn::Name& producer, uint64_t val) {
-    m_versionRecovery.set(producer, val);
+void mnemosyne::Backend::triggerBackup() {
     m_lastSeqNoBackup ++;
     if (m_lastSeqNoBackup >= m_seqNoBackupFreq) { // backup
         for (auto& func : m_backUpCallbacks) {
@@ -71,20 +56,4 @@ void mnemosyne::Backend::seqNumSet(const ndn::Name& producer, uint64_t val) {
         }
         m_lastSeqNoBackup = 0;
     }
-}
-
-bool mnemosyne::Backend::versionRecoverCallback() {
-    auto backupPage = m_versionRecovery.encode();
-    backupPage.encode();
-    std::string page((const char *)backupPage.wire(), backupPage.size());
-    if (m_storage->placeMetaData(SEQ_NO_BACKUP_KEY, page)) {
-        std::cerr << "Backend: metadata backup write success\n";
-        return true;
-    } else {
-        return false;
-    }
-}
-
-const svs::VersionVector& mnemosyne::Backend::seqNumGet() const {
-    return m_versionRecovery;
 }

@@ -68,7 +68,11 @@ class MnemosyneDagLogger {
 
     void addReceivedRecord(std::unique_ptr<Record> record, const Name& producer, svs::SeqNo seqId);
 
+    bool versionBackupCallback();
+
     static ndn::svs::SecurityOptions getSecurityOption(KeyChain& keychain, shared_ptr<ndn::security::Validator> recordValidator, Name peerPrefix);
+
+    static const std::string SEQ_NO_BACKUP_KEY;
 
   protected:
     uint64_t m_KnownSelfSeqId;
@@ -76,6 +80,7 @@ class MnemosyneDagLogger {
     std::shared_ptr<Backend> m_backend;
     std::unique_ptr<DagReferenceChecker> m_dagReferenceChecker;
     std::unique_ptr<dag::ReplicationCounter> m_replicationCounter;
+    ndn::svs::VersionVector m_dagCollectedVersions;
     std::unique_ptr<dag::RecordSync> m_dagSync;
     std::function<void(const Record&)> m_onRecordCallback;
 

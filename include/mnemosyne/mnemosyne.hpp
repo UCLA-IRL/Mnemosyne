@@ -53,7 +53,6 @@ class Mnemosyne {
     MnemosyneDagLogger m_dagSync;
     Scheduler m_scheduler;
     std::shared_ptr<ndn::security::Validator> m_eventValidator;
-    //TODO persistence
     std::unique_ptr<interface::SeenEventSet> m_seenEvents;
     std::mt19937_64 m_randomEngine;
 
