@@ -1,6 +1,7 @@
 #ifndef MNEMOSYNE_BACKEND_H_
 #define MNEMOSYNE_BACKEND_H_
 
+#include "mnemosyne/logger-config.hpp"
 #include <ndn-svs/version-vector.hpp>
 #include <ndn-cxx/data.hpp>
 
@@ -11,8 +12,12 @@ namespace storage {
 class Storage;
 }
 
+/**
+ * Class for providing record and metadata persistence using storage
+ */
 class Backend {
   public:
+    Backend(const LoggerConfig& config);
     Backend(const std::string &storage_type, const std::string &dbDir, uint32_t seqNoBackupFreq = 1);
 
   public:

@@ -28,6 +28,10 @@ class Mnemosyne {
 
     virtual ~Mnemosyne();
 
+    inline std::shared_ptr<Backend> getBackend() {
+        return m_backend;
+    }
+
   private:
     void onSubscriptionData(const svs::SVSPubSub::SubscriptionData& subData);
     void onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::MissingDataInfo>& info);
@@ -35,10 +39,11 @@ class Mnemosyne {
 
     ndn::svs::SecurityOptions getSecurityOption();
 
-    void onRecordUpdate(Record record);
+    void onRecordUpdate(const Record& record);
 
   protected:
     const Config m_config;
+    std::shared_ptr<Backend> m_backend;
     security::KeyChain &m_keychain;
     MnemosyneDagLogger m_dagSync;
     Scheduler m_scheduler;

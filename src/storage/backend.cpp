@@ -2,11 +2,14 @@
 // Created by Tyler on 1/29/23.
 //
 
-#include "backend.h"
+#include "mnemosyne/backend.hpp"
 #include "storage/storage-leveldb.h"
 #include <iostream>
 
 const std::string mnemosyne::Backend::SEQ_NO_BACKUP_KEY = "SeqNoBackup";
+
+mnemosyne::Backend::Backend(const LoggerConfig& config)
+    : Backend(config.databaseType, config.databasePath, config.seqNoBackupFreq) {}
 
 mnemosyne::Backend::Backend(const std::string &storage_type, const std::string &dbDir, uint32_t seqNoBackupFreq) :
         m_storage(storage::getStorage(storage_type, dbDir)),

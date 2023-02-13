@@ -1,4 +1,5 @@
 #include "mnemosyne/mnemosyne.hpp"
+#include "mnemosyne/backend.hpp"
 #include "interface/seen-event-set.h"
 #include "util.hpp"
 
@@ -16,7 +17,8 @@ namespace mnemosyne {
 Mnemosyne::Mnemosyne(const Config &config, KeyChain &keychain, Face &network, std::shared_ptr<ndn::security::Validator> recordValidator, std::shared_ptr<ndn::security::Validator> eventValidator) :
         m_config(config),
         m_keychain(keychain),
-        m_dagSync(m_config, keychain, network, std::move(recordValidator)),
+        m_backend(std::make_shared<Backend>(config.databaseType, config.databasePath, m_config.seqNoBackupFreq)),
+        m_dagSync(m_config, m_backend, keychain, network, std::move(recordValidator)),
         m_scheduler(network.getIoService()),
         m_eventValidator(std::move(eventValidator)),
         m_seenEvents(std::make_unique<interface::SeenEventSet>(config.seenEventTtl)),
@@ -95,7 +97,7 @@ ndn::svs::SecurityOptions Mnemosyne::getSecurityOption() {
     return option;
 }
 
-void Mnemosyne::onRecordUpdate(Record record) {
+void Mnemosyne::onRecordUpdate(const Record& record) {
     m_eventValidator->validate(record.getContentData().value(), [&](const auto& eventData){
         const auto& eventFullName = eventData.getFullName();
         m_seenEvents->addEvent(eventFullName);

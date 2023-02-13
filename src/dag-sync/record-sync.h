@@ -18,7 +18,7 @@
 #define MNEMOSYNE_RECORD_SYNC_H
 
 #include "mnemosyne/record.hpp"
-#include "backend/backend.h"
+#include "mnemosyne/backend.hpp"
 
 #include <ndn-svs/svsync-base.hpp>
 

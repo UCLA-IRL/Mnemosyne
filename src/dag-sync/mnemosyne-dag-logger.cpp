@@ -1,6 +1,6 @@
 #include "mnemosyne/mnemosyne-dag-logger.hpp"
 
-#include "backend/backend.h"
+#include "mnemosyne/backend.hpp"
 #include "dag-sync/dag-reference-checker.h"
 #include "dag-sync/replication-counter.h"
 #include "dag-sync/record-sync.h"
@@ -22,11 +22,12 @@ using namespace ndn;
 namespace mnemosyne {
 
 MnemosyneDagLogger::MnemosyneDagLogger(const LoggerConfig &config,
+                                       std::shared_ptr<Backend> backend,
                                        security::KeyChain &keychain,
                                        Face &network,
                                        std::shared_ptr<ndn::security::Validator> recordValidator)
         : m_config(config)
-        , m_backend(std::make_shared<Backend>(config.databaseType, config.databasePath, m_config.seqNoBackupFreq))
+        , m_backend(std::move(backend))
         , m_dagReferenceChecker(std::make_unique<DagReferenceChecker>(m_backend,
                                 std::bind(&MnemosyneDagLogger::addReceivedRecord, this, _1, _2, _3)))
         , m_replicationCounter(std::make_unique<dag::ReplicationCounter>(config.peerPrefix, config.maxCountedReplication))
@@ -137,20 +138,6 @@ ReturnCode MnemosyneDagLogger::createRecord(Record &record) {
     // add new record into the ledger
     addReceivedRecord(std::make_unique<Record>(record), m_config.peerPrefix, seqId);
     return ReturnCode::noError(record.getRecordFullName().toUri());
-}
-
-optional<Record> MnemosyneDagLogger::getRecord(const std::string &recordName) const {
-    return m_backend->getRecord(recordName);
-}
-
-bool MnemosyneDagLogger::hasRecord(const std::string &recordName) const {
-    auto list = m_backend->listRecord(Name(recordName), 1);
-    if (list.empty()) return false;
-    return *list.begin() == recordName;
-}
-
-std::list<Name> MnemosyneDagLogger::listRecord(const std::string &prefix) const {
-    return m_backend->listRecord(Name(prefix));
 }
 
 std::list<uint64_t> MnemosyneDagLogger::getReplicationSeqId() const {

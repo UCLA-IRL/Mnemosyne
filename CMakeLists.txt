@@ -26,8 +26,8 @@ set(MNEMOSYNE_LIB_SOURCE_FILES
         src/storage/storage-leveldb.h
         src/storage/storage-memory.cpp
         src/storage/storage-memory.h
-        src/backend/backend.cpp
-        src/backend/backend.h
+        src/storage/backend.cpp
+        include/mnemosyne/backend.hpp
         src/dag-sync/mnemosyne-dag-logger.cpp
         src/dag-sync/dag-reference-checker.cpp
         src/dag-sync/dag-reference-checker.h

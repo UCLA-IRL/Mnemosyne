@@ -4,6 +4,7 @@
 #include "record.hpp"
 #include "logger-config.hpp"
 #include "return-code.hpp"
+#include "backend.hpp"
 #include <ndn-svs/svsync-shared.hpp>
 #include <ndn-cxx/security/key-chain.hpp>
 #include <ndn-cxx/security/validator.hpp>
@@ -18,7 +19,6 @@
 using namespace ndn;
 namespace mnemosyne {
 
-class Backend;
 class DagReferenceChecker;
 
 namespace dag {
@@ -34,7 +34,8 @@ class MnemosyneDagLogger {
    * @p keychain, input, the local NDN keychain instance
    * @p face, input, the localhost NDN face to send/receive NDN packets.
    */
-    MnemosyneDagLogger(const LoggerConfig &config, security::KeyChain &keychain, Face &network, std::shared_ptr<ndn::security::Validator> m_recordValidator);
+    MnemosyneDagLogger(const LoggerConfig &config, std::shared_ptr<Backend> backend, security::KeyChain &keychain,
+                       Face &network, std::shared_ptr<ndn::security::Validator> m_recordValidator);
 
     virtual ~MnemosyneDagLogger();
 
@@ -46,27 +47,6 @@ class MnemosyneDagLogger {
     createRecord(Record &record);
 
     /**
-     * Get an existing record from the MnemosyneDagLogger.
-     * @p recordName, input, the name of the record, which is an NDN full name (i.e., containing ImplicitSha256DigestComponent component)
-     */
-    virtual optional<Record>
-    getRecord(const std::string &recordName) const;
-
-    /**
-     * Check whether the record exists in the MnemosyneDagLogger.
-     * @p recordName, input, the name of the record, which is an NDN full name (i.e., containing ImplicitSha256DigestComponent component)
-     */
-    virtual bool
-    hasRecord(const std::string &recordName) const;
-
-    /**
-      * list the record exists in the MnemosyneDagLogger.
-      * @p recordName, input, the name of the record, which is an NDN name prefix.
-      */
-    virtual std::list<Name>
-    listRecord(const std::string &prefix) const;
-
-    /**
      * return the current list for determining the replication count.
      * @return a list of highest sequence number for each weight, starting at maxCount and ending with 0
      */
@@ -76,6 +56,10 @@ class MnemosyneDagLogger {
 
     void setOnRecordCallback(std::function<void(const Record&)> callback) {
         m_onRecordCallback = std::move(callback);
+    }
+
+    inline std::shared_ptr<Backend> getBackend() {
+        return m_backend;
     }
 
   private:

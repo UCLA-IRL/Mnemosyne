@@ -5,7 +5,7 @@
 #ifndef MNEMOSYNE_DAG_REFERENCE_CHECKER_H
 #define MNEMOSYNE_DAG_REFERENCE_CHECKER_H
 
-#include "backend/backend.h"
+#include "mnemosyne/backend.hpp"
 #include "mnemosyne/record.hpp"
 
 #include <ndn-svs/svsync.hpp>
