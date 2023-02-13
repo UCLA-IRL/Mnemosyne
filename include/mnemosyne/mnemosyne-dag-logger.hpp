@@ -35,7 +35,8 @@ class MnemosyneDagLogger {
    * @p face, input, the localhost NDN face to send/receive NDN packets.
    */
     MnemosyneDagLogger(const LoggerConfig &config, std::shared_ptr<Backend> backend, security::KeyChain &keychain,
-                       Face &network, std::shared_ptr<ndn::security::Validator> m_recordValidator);
+                       Face &network, std::shared_ptr<ndn::security::Validator> m_recordValidator,
+                       std::function<void(const Record&)> onRecordCallback = nullptr);
 
     virtual ~MnemosyneDagLogger();
 

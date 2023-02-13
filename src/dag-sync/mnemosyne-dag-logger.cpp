@@ -25,7 +25,8 @@ MnemosyneDagLogger::MnemosyneDagLogger(const LoggerConfig &config,
                                        std::shared_ptr<Backend> backend,
                                        security::KeyChain &keychain,
                                        Face &network,
-                                       std::shared_ptr<ndn::security::Validator> recordValidator)
+                                       std::shared_ptr<ndn::security::Validator> recordValidator,
+                                       std::function<void(const Record&)> onRecordCallback)
         : m_config(config)
         , m_backend(std::move(backend))
         , m_dagReferenceChecker(std::make_unique<DagReferenceChecker>(m_backend,
@@ -37,6 +38,7 @@ MnemosyneDagLogger::MnemosyneDagLogger(const LoggerConfig &config,
                     getSecurityOption(keychain, recordValidator, config.peerPrefix)))
         , m_randomEngine(std::random_device()())
         , m_KnownSelfSeqId(0)
+        , m_onRecordCallback(onRecordCallback)
 {
     NDN_LOG_INFO("Mnemosyne Initialization Start");
 
@@ -73,6 +75,9 @@ void MnemosyneDagLogger::restoreRecordSyncVersionVector() {
             if (l.empty()) {
                 break;
             } else {
+                if (producer != m_config.peerPrefix && m_onRecordCallback) {
+                    m_onRecordCallback(m_backend->getRecord(*l.begin()));
+                }
                 seq ++;
                 m_lastRecordInChains[producer] = *l.begin();
             }

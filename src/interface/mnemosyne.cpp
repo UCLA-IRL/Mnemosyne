@@ -21,7 +21,7 @@ Mnemosyne::Mnemosyne(const Config &config, KeyChain &keychain, Face &network, st
         m_config(config),
         m_keychain(keychain),
         m_backend(std::make_shared<Backend>(config.databaseType, config.databasePath, m_config.seqNoBackupFreq)),
-        m_dagSync(m_config, m_backend, keychain, network, std::move(recordValidator)),
+        m_dagSync(m_config, m_backend, keychain, network, std::move(recordValidator), [this](const auto &record) { onRecordUpdate(record); }),
         m_scheduler(network.getIoService()),
         m_eventValidator(std::move(eventValidator)),
         m_seenEvents(std::make_unique<interface::SeenEventSet>(config.seenEventTtl)),
@@ -35,7 +35,6 @@ Mnemosyne::Mnemosyne(const Config &config, KeyChain &keychain, Face &network, st
                                                                          const auto &d) { onSyncUpdate(groupId, d); },
                                                                  getSecurityOption()));
     }
-    m_dagSync.setOnRecordCallback([&](const auto &record) { onRecordUpdate(record); });
 
     m_scheduler.schedule(time::nanoseconds(std::chrono::nanoseconds(config.startUpDelay).count()),
                          [this]() {
