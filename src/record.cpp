@@ -2,7 +2,6 @@
 
 #include <ndn-cxx/security/key-chain.hpp>
 #include <ndn-cxx/security/signing-helpers.hpp>
-#include <ndn-cxx/security/digest-sha256.hpp>
 #include <sstream>
 #include <utility>
 #include <iostream>

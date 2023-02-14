@@ -2,6 +2,7 @@
 #define MNEMOSYNE_STORAGE_H
 
 #include <string>
+#include <optional>
 #include <ndn-cxx/name.hpp>
 #include <ndn-cxx/data.hpp>
 
