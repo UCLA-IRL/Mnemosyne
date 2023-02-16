@@ -20,7 +20,8 @@ int main(int argc, char* argv[]) {
             ("help,h", "Display this help message")
             ("dag-sync-prefix,m", po::value<std::string>()->default_value("/ndn/broadcast/mnemosyne-dag"), "The prefix for DAG synchronization")
             ("dag-hint-prefix,i", po::value<std::string>()->default_value("/ndn/broadcast/mnemosyne-hint"), "The prefix for DAG recovery hint")
-            ("interface-ps-prefix,p", po::value<std::string>()->default_value("/ndn/broadcast/mnemosyne"), "The prefix for Interface Pub/Sub")
+            ("interface-ps-prefix,p", po::value<std::vector<std::string>>()->multitoken()->zero_tokens(), "The prefix for Interface Pub/Sub")
+            ("interface-sync-prefix,s", po::value<std::vector<std::string>>()->multitoken()->zero_tokens(), "The prefix for Interface Sync")
             ("logger-prefix,l", po::value<std::string>(), "The prefix for the logger")
             ("trust-anchor,a", po::value<std::string>()->default_value("./mnemosyne-anchor.cert"), "The trust anchor file path for the logger")
             ("database-path,d", po::value<std::string>()->default_value("/tmp/mnemosyne-db/..."), "The database path for the logger");
@@ -45,6 +46,15 @@ int main(int argc, char* argv[]) {
         std::string("/tmp/mnemosyne-db/" + identity.substr(identity.rfind('/'))) :
                                vm["database-path"].as<std::string>();
 
+    //interface processing
+    std::set<Name> ps_set, sync_set;
+    for (const auto& p: vm["interface-ps-prefix"].as<std::vector<std::string>>()) {
+        ps_set.emplace(p);
+    }
+    for (const auto& p: vm["interface-sync-prefix"].as<std::vector<std::string>>()) {
+        sync_set.emplace(p);
+    }
+
     boost::asio::io_service ioService;
     Face face(ioService);
     security::KeyChain keychain;
@@ -52,8 +62,7 @@ int main(int argc, char* argv[]) {
     try {
         config = std::make_shared<Config>(Name(vm["dag-sync-prefix"].as<std::string>()),
                                           Name(vm["dag-hint-prefix"].as<std::string>()),
-                                          Name(identity),
-                                          std::set({Name(vm["interface-ps-prefix"].as<std::string>())}));
+                                          Name(identity), ps_set, sync_set);
         config->setDatabase("leveldb", databasePath);
         mkdir("/tmp/mnemosyne-db/", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     }

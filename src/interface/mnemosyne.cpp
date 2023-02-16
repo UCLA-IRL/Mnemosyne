@@ -78,9 +78,11 @@ void Mnemosyne::onSubscriptionData(const svs::SVSPubSub::SubscriptionData &subDa
 }
 
 void Mnemosyne::onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::MissingDataInfo> &info) {
-    if (!m_ready) return;
+    if (!m_ready) {
+        return;
+    }
     for (const auto &s: info) {
-        for (ndn::svs::SeqNo i = s.low; i < s.high; i++) {
+        for (ndn::svs::SeqNo i = s.low; i <= s.high; i++) {
             m_interfaceSyncs[groupId]->fetchData(s.nodeId, i, [this, s, i](const Data &data) {
                 onEventData(data, s.nodeId, i);
             });

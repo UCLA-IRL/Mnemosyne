@@ -11,3 +11,6 @@ target_link_libraries(dag-sync-test PUBLIC mnemosyne)
 
 add_executable(mnemosyne-test-client mnemosyne-test-client.cpp)
 target_link_libraries(mnemosyne-test-client PUBLIC mnemosyne)
+
+add_executable(mnemosyne-test-client-sync mnemosyne-test-client-sync.cpp)
+target_link_libraries(mnemosyne-test-client-sync PUBLIC mnemosyne)
