@@ -70,7 +70,11 @@ void Mnemosyne::onSubscriptionData(const svs::SVSPubSub::SubscriptionData &subDa
         NDN_LOG_WARN("error");
         return;
     }
-    onEventData(*subData.packet, subData.producerPrefix, subData.seqNo);
+    m_eventValidator->validate(*subData.packet, [this, prefix=subData.producerPrefix, seqId=subData.seqNo](const auto& data) {
+        onEventData(data, prefix, seqId);
+    }, [](const Data &eventData, auto &&error) {
+        NDN_LOG_ERROR("Event data " << eventData.getFullName() << " verification error: " << error);
+    });
 }
 
 void Mnemosyne::onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::MissingDataInfo> &info) {
@@ -84,29 +88,24 @@ void Mnemosyne::onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::Missi
     }
 }
 
-void Mnemosyne::onEventData(const Data &data, ndn::Name producer, ndn::svs::SeqNo seqId) {
-    m_eventValidator->validate(data,
-                               [this, producer, seqId](const Data &eventData) {
-                                   std::uniform_int_distribution<uint32_t> delayDistribution(0,
-                                                                                             m_config.insertBackoffMaxMs);
-                                   NDN_LOG_INFO("Received event data " << eventData.getFullName());
-                                   if (m_seenEvents->hasEvent(eventData.getFullName())) return;
-                                   m_scheduler.schedule(time::milliseconds(delayDistribution(m_randomEngine)),
-                                                        [this, eventData, producer, seqId]() {
-                                                            if (m_seenEvents->hasEvent(eventData.getFullName())) {
-                                                                NDN_LOG_INFO("Event data " << eventData.getFullName()
-                                                                                           << " found in DAG. ");
-                                                                return;
-                                                            } else {
-                                                                NDN_LOG_INFO("Event data " << eventData.getFullName()
-                                                                                           << " not found in DAG. Publishing...");
-                                                            }
-                                                            Record record(eventData, producer, seqId);
-                                                            m_dagSync.createRecord(record);
-                                                        });
-                               }, [](const Data &eventData, auto &&error) {
-                NDN_LOG_ERROR("Event data " << eventData.getFullName() << " verification error: " << error);
-            });
+void Mnemosyne::onEventData(const Data &data, const ndn::Name& producer, ndn::svs::SeqNo seqId) {
+    std::uniform_int_distribution<uint32_t> delayDistribution(0,
+                                                              m_config.insertBackoffMaxMs);
+    NDN_LOG_INFO("Received event data " << data.getFullName());
+    if (m_seenEvents->hasEvent(data.getFullName())) return;
+    m_scheduler.schedule(time::milliseconds(delayDistribution(m_randomEngine)),
+                         [this, data, producer, seqId]() {
+                             if (m_seenEvents->hasEvent(data.getFullName())) {
+                                 NDN_LOG_INFO("Event data " << data.getFullName()
+                                                            << " found in DAG. ");
+                                 return;
+                             } else {
+                                 NDN_LOG_INFO("Event data " << data.getFullName()
+                                                            << " not found in DAG. Publishing...");
+                             }
+                             Record record(data, producer, seqId);
+                             m_dagSync.createRecord(record);
+                         });
 }
 
 ndn::svs::SecurityOptions Mnemosyne::getSecurityOption() {

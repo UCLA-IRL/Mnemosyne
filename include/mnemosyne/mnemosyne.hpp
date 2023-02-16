@@ -37,7 +37,7 @@ class Mnemosyne {
 
     void onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::MissingDataInfo> &info);
 
-    void onEventData(const Data &data, ndn::Name producer, ndn::svs::SeqNo seqId);
+    void onEventData(const Data &data, const ndn::Name& producer, ndn::svs::SeqNo seqId);
 
     ndn::svs::SecurityOptions getSecurityOption();
 
