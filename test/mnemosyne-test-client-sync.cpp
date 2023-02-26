@@ -20,15 +20,16 @@ std::random_device rd;  //Will be used to obtain a seed for the random number en
 std::mt19937 random_gen(rd()); //Standard mersenne_twister_engine seeded with rd()
 
 void
-periodicAddRecord(KeyChain &keychain, shared_ptr<svs::SVSync> interfaceSync, const Name &peerPrefix, Scheduler &scheduler) {
+periodicAddRecord(KeyChain &keychain, shared_ptr<svs::SVSync> interfaceSync, const Name &peerPrefix, Scheduler &scheduler, float freq_mean) {
     std::uniform_int_distribution<int> distribution(0, INT_MAX);
 
     std::cout << "adding packet " << (interfaceSync->getCore().getSeqNo() + 1) << std::endl;
     interfaceSync->publishData(makeStringBlock(tlv::Content, std::to_string(distribution(random_gen))), time::seconds(60));
 
     // schedule for the next record generation
-    scheduler.schedule(time::seconds(5), [&keychain, interfaceSync, peerPrefix, &scheduler] {
-        periodicAddRecord(keychain, interfaceSync, peerPrefix, scheduler);
+    std::exponential_distribution<> d(freq_mean);
+    scheduler.schedule(time::microseconds((long long) (d(random_gen) * 1000000)), [&keychain, interfaceSync, peerPrefix, &scheduler, freq_mean] {
+        periodicAddRecord(keychain, interfaceSync, peerPrefix, scheduler, freq_mean);
     });
 }
 
@@ -39,7 +40,8 @@ int main(int argc, char **argv) {
             ("help,h", "Display this help message")
             ("interface-ps-prefix,i", po::value<std::string>()->default_value("/ndn/broadcast/mnemosyne-sync"),
              "The prefix for Interface Sync")
-            ("client-prefix,c", po::value<std::string>(), "The prefix for the client");
+            ("client-prefix,c", po::value<std::string>(), "The prefix for the client")
+            ("frequency, f", po::value<float>()->default_value(5), "Mean time interval of sending logs, in seconds");
 
     po::variables_map vm;
     po::store(po::command_line_parser(argc, argv).options(description).run(), vm);
@@ -63,7 +65,7 @@ int main(int argc, char **argv) {
             vm["interface-ps-prefix"].as<std::string>(), vm["client-prefix"].as<std::string>(), face, nullptr);
 
     Scheduler scheduler(ioService);
-    periodicAddRecord(keychain, interfaceSync, vm["client-prefix"].as<std::string>(), scheduler);
+    periodicAddRecord(keychain, interfaceSync, vm["client-prefix"].as<std::string>(), scheduler, vm["frequency"].as<float>());
 
     face.processEvents();
     return 0;

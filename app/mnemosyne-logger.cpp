@@ -24,6 +24,7 @@ int main(int argc, char* argv[]) {
             ("interface-sync-prefix,s", po::value<std::vector<std::string>>()->multitoken()->zero_tokens(), "The prefix for Interface Sync")
             ("logger-prefix,l", po::value<std::string>(), "The prefix for the logger")
             ("trust-anchor,a", po::value<std::string>()->default_value("./mnemosyne-anchor.cert"), "The trust anchor file path for the logger")
+            ("database-type,t", po::value<std::string>()->default_value("leveldb"), "The database type for the logger")
             ("database-path,d", po::value<std::string>()->default_value("/tmp/mnemosyne-db/..."), "The database path for the logger");
 
     po::variables_map vm;
@@ -63,7 +64,7 @@ int main(int argc, char* argv[]) {
         config = std::make_shared<Config>(Name(vm["dag-sync-prefix"].as<std::string>()),
                                           Name(vm["dag-hint-prefix"].as<std::string>()),
                                           Name(identity), ps_set, sync_set);
-        config->setDatabase("leveldb", databasePath);
+        config->setDatabase(vm["database-type"].as<std::string>(), databasePath);
         mkdir("/tmp/mnemosyne-db/", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     }
     catch (const std::exception &e) {
