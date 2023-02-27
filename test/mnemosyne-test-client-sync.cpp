@@ -28,7 +28,8 @@ periodicAddRecord(KeyChain &keychain, shared_ptr<svs::SVSync> interfaceSync, con
 
     // schedule for the next record generation
     std::exponential_distribution<> d(freq_mean);
-    scheduler.schedule(time::microseconds((long long) (d(random_gen) * 1000000)), [&keychain, interfaceSync, peerPrefix, &scheduler, freq_mean] {
+    auto interval = (long long) (d(random_gen) * 1000000);
+    scheduler.schedule(time::microseconds(interval), [&keychain, interfaceSync, peerPrefix, &scheduler, freq_mean] {
         periodicAddRecord(keychain, interfaceSync, peerPrefix, scheduler, freq_mean);
     });
 }
@@ -41,7 +42,7 @@ int main(int argc, char **argv) {
             ("interface-ps-prefix,i", po::value<std::string>()->default_value("/ndn/broadcast/mnemosyne-sync"),
              "The prefix for Interface Sync")
             ("client-prefix,c", po::value<std::string>(), "The prefix for the client")
-            ("frequency,f", po::value<float>()->default_value(5), "Mean time interval of sending logs, in seconds");
+            ("frequency,f", po::value<float>()->default_value(0.2), "Mean frequency of sending logs per seconds");
 
     po::variables_map vm;
     po::store(po::command_line_parser(argc, argv).options(description).run(), vm);
@@ -62,7 +63,7 @@ int main(int argc, char **argv) {
     security::KeyChain keychain;
 
     std::shared_ptr<svs::SVSync> interfaceSync = std::make_shared<svs::SVSync>(
-            vm["interface-ps-prefix"].as<std::string>(), vm["client-prefix"].as<std::string>(), face, nullptr);
+            vm["interface-ps-prefix"].as<std::string>(), vm["client-prefix"].as<std::string>(), face, [](const auto &info){});
 
     Scheduler scheduler(ioService);
     periodicAddRecord(keychain, interfaceSync, vm["client-prefix"].as<std::string>(), scheduler, vm["frequency"].as<float>());
