@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
             ("interface-ps-prefix,i", po::value<std::string>()->default_value("/ndn/broadcast/mnemosyne-sync"),
              "The prefix for Interface Sync")
             ("client-prefix,c", po::value<std::string>(), "The prefix for the client")
-            ("frequency, f", po::value<float>()->default_value(5), "Mean time interval of sending logs, in seconds");
+            ("frequency,f", po::value<float>()->default_value(5), "Mean time interval of sending logs, in seconds");
 
     po::variables_map vm;
     po::store(po::command_line_parser(argc, argv).options(description).run(), vm);

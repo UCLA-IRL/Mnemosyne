@@ -44,8 +44,8 @@ int main(int argc, char* argv[]) {
 
     std::string identity = vm["logger-prefix"].as<std::string>();
     std::string databasePath = vm["database-path"].as<std::string>() == "/tmp/mnemosyne-db/..." ?
-        std::string("/tmp/mnemosyne-db/" + identity.substr(identity.rfind('/'))) :
-                               vm["database-path"].as<std::string>();
+    std::string("/tmp/mnemosyne-db/" + identity.substr(identity.rfind('/'))) :
+                           vm["database-path"].as<std::string>();
 
     //interface processing
     std::set<Name> ps_set, sync_set;
