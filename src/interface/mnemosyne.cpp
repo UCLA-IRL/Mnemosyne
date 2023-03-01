@@ -107,7 +107,8 @@ void Mnemosyne::onEventData(const Data &data, const ndn::Name& producer, ndn::sv
                              Record record(data, producer, seqId);
                              auto ret = m_dagSync.createRecord(record);
                              if (ret.success())
-                                NDN_LOG_INFO("Published event data " << data.getFullName() << " in " << record.getRecordFullName());
+                                NDN_LOG_INFO(m_config.peerPrefix << " Published event data " << data.getFullName()
+                                        << " in record " << Record::getRecordSeqId(record.getRecordFullName()));
                          });
 }
 
