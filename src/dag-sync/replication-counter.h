@@ -23,13 +23,20 @@ class ReplicationCounter {
 
     std::list<uint64_t> getCounts() const;
 
+    uint64_t getMaxReferenceSeqNo() const;
+
     void recordUpdate(const Record &record);
 
   private:
-    std::set<std::pair<uint64_t, ndn::Name>> m_locations;
-    std::unordered_map<ndn::Name, uint64_t> m_referencePoints;
+    uint32_t getLocationSize() const;
+
+  private:
+    std::map<uint64_t, std::set<ndn::Name>> m_locations;
+    std::unordered_map<ndn::Name, std::map<uint64_t, uint64_t>> m_referencePoints;
     ndn::Name m_peerPrefix;
     uint32_t m_maxReference;
+
+    std::map<uint64_t, uint64_t> &getPrunedRefPointSet(const Name &producer);
 };
 
 } // namespace mnemosyne::dag
