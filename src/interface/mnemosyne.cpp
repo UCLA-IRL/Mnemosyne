@@ -127,12 +127,9 @@ void Mnemosyne::onRecordUpdate(const Record &record) {
         const auto &eventFullName = eventData.getFullName();
         m_seenEvents->addEvent(eventFullName);
 
-        auto replicationSeqId = m_dagSync.getReplicationSeqId();
-        std::string str;
-        for (const auto& i : replicationSeqId) str += " " + std::to_string(i);
-        NDN_LOG_TRACE(m_config.peerPrefix << " immutable record ends at [" << str << " ]");
-        if (replicationSeqId.size() == m_config.maxCountedReplication + 1)
-            NDN_LOG_INFO(m_config.peerPrefix << " immutable record ends at " << *replicationSeqId.begin());
+        auto replicationSeqId = m_dagSync.getMaxReferenceSeqNo();
+        if (replicationSeqId != 0)
+            NDN_LOG_INFO(m_config.peerPrefix << " immutable record ends at " << replicationSeqId);
     }, [](const auto &data, const auto &error) {
         NDN_LOG_ERROR("Verification error on event record " << data.getFullName() << ": " << error);
     });

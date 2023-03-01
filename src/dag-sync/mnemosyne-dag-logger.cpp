@@ -164,6 +164,10 @@ std::list<uint64_t> MnemosyneDagLogger::getReplicationSeqId() const {
     return re;
 }
 
+uint64_t MnemosyneDagLogger::getMaxReferenceSeqNo() const {
+    return m_replicationCounter->getMaxReferenceSeqNo();
+}
+
 void MnemosyneDagLogger::onUpdate(const std::vector<ndn::svs::MissingDataInfo> &info) {
     for (const auto &stream: info) {
         NDN_LOG_TRACE("Sync discovered Data " << stream.nodeId << " " << stream.low << " - " << stream.high);

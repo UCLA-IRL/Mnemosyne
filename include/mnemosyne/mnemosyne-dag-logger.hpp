@@ -53,6 +53,7 @@ class MnemosyneDagLogger {
      * @return a list of highest sequence number for each weight, starting at maxCount and ending with 0
      */
     std::list<uint64_t> getReplicationSeqId() const;
+    uint64_t getMaxReferenceSeqNo() const;
 
     const Name &getPeerPrefix() const;
 
