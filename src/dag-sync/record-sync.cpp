@@ -98,7 +98,7 @@ void mnemosyne::dag::RecordSync::onDataInterest(const Interest &interest) {
     if (interest.getForwardingHint().empty()) return;
     for (const Name &hintName: interest.getForwardingHint()) {
         if (m_hintPrefix.isPrefixOf(hintName)) {
-            NDN_LOG_INFO("Hinted face incoming: " << interest.getName());
+            NDN_LOG_TRACE("Hinted face incoming: " << interest.getName());
             auto data = getDataStore().find(interest);
             if (data != nullptr)
                 m_face.put(*data);

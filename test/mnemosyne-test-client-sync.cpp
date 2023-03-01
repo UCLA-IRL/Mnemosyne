@@ -6,12 +6,16 @@
 #include <ndn-cxx/security/signing-helpers.hpp>
 #include <ndn-cxx/util/scheduler.hpp>
 #include <ndn-cxx/util/io.hpp>
+#include <ndn-cxx/util/logger.hpp>
+#include <ndn-cxx/util/logging.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/variables_map.hpp>
 #include <boost/program_options/parsers.hpp>
 #include <iostream>
 #include <random>
+
+NDN_LOG_INIT(mnemosyne.testClient.sync);
 
 namespace po = boost::program_options;
 using namespace ndn;
@@ -23,8 +27,8 @@ void
 periodicAddRecord(KeyChain &keychain, shared_ptr<svs::SVSync> interfaceSync, const Name &peerPrefix, Scheduler &scheduler, float freq_mean) {
     std::uniform_int_distribution<int> distribution(0, INT_MAX);
 
-    std::cout << "adding packet " << (interfaceSync->getCore().getSeqNo() + 1) << std::endl;
-    interfaceSync->publishData(makeStringBlock(tlv::Content, std::to_string(distribution(random_gen))), time::seconds(60));
+    auto seqId = interfaceSync->publishData(makeStringBlock(tlv::Content, std::to_string(distribution(random_gen))), time::seconds(60));
+    NDN_LOG_INFO("Adding packet " << interfaceSync->getDataName(interfaceSync->getCore().getNodeId(), seqId));
 
     // schedule for the next record generation
     std::exponential_distribution<> d(freq_mean);
@@ -39,7 +43,7 @@ int main(int argc, char **argv) {
 
     description.add_options()
             ("help,h", "Display this help message")
-            ("interface-ps-prefix,i", po::value<std::string>()->default_value("/ndn/broadcast/mnemosyne-sync"),
+            ("interface-sync-prefix,i", po::value<std::string>()->default_value("/ndn/broadcast/mnemosyne-sync"),
              "The prefix for Interface Sync")
             ("client-prefix,c", po::value<std::string>(), "The prefix for the client")
             ("frequency,f", po::value<float>()->default_value(0.2), "Mean frequency of sending logs per seconds");
@@ -63,7 +67,7 @@ int main(int argc, char **argv) {
     security::KeyChain keychain;
 
     std::shared_ptr<svs::SVSync> interfaceSync = std::make_shared<svs::SVSync>(
-            vm["interface-ps-prefix"].as<std::string>(), vm["client-prefix"].as<std::string>(), face, [](const auto &info){});
+            vm["interface-sync-prefix"].as<std::string>(), vm["client-prefix"].as<std::string>(), face, [](const auto &info){});
 
     Scheduler scheduler(ioService);
     periodicAddRecord(keychain, interfaceSync, vm["client-prefix"].as<std::string>(), scheduler, vm["frequency"].as<float>());

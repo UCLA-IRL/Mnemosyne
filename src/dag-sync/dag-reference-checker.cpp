@@ -33,13 +33,13 @@ void DagReferenceChecker::verifyPreviousRecord(std::unique_ptr<Record> record, c
         } else if (m_waitingRecords.count(i) || !backend->getRecord(i)) { //verification failed
             m_targetForWaitingRecords.emplace(i, recordName);
             m_waitingRecords.emplace(recordName, std::tuple(std::move(record), producer, seqId));
-            NDN_LOG_INFO(recordName << " waiting for " << i);
+            NDN_LOG_TRACE("record " << recordName << " waiting for " << i);
             return;
         }
     }
 
     //verification success
-    NDN_LOG_INFO("record checked for reference: " << record->getEncodedData()->getFullName());
+    NDN_LOG_TRACE("record checked for reference: " << record->getEncodedData()->getFullName());
     m_readyRecordCallback(std::move(record), producer, seqId);
 
     std::map<Name, std::tuple<std::unique_ptr<Record>, Name, svs::SeqNo>> waitingList;

@@ -93,20 +93,21 @@ void Mnemosyne::onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::Missi
 void Mnemosyne::onEventData(const Data &data, const ndn::Name& producer, ndn::svs::SeqNo seqId) {
     std::uniform_int_distribution<uint32_t> delayDistribution(0,
                                                               m_config.insertBackoffMaxMs);
-    NDN_LOG_INFO("Received event data " << data.getFullName());
+    NDN_LOG_TRACE("Received event data " << data.getFullName());
     if (m_seenEvents->hasEvent(data.getFullName())) return;
     m_scheduler.schedule(time::milliseconds(delayDistribution(m_randomEngine)),
                          [this, data, producer, seqId]() {
                              if (m_seenEvents->hasEvent(data.getFullName())) {
-                                 NDN_LOG_INFO("Event data " << data.getFullName()
+                                 NDN_LOG_TRACE("Event data " << data.getFullName()
                                                             << " found in DAG. ");
                                  return;
-                             } else {
-                                 NDN_LOG_INFO("Event data " << data.getFullName()
-                                                            << " not found in DAG. Publishing...");
                              }
+                             NDN_LOG_TRACE("Event data " << data.getFullName()
+                                                        << " not found in DAG. Publishing...");
                              Record record(data, producer, seqId);
-                             m_dagSync.createRecord(record);
+                             auto ret = m_dagSync.createRecord(record);
+                             if (ret.success())
+                                NDN_LOG_INFO("Published event data " << data.getFullName() << " in " << record.getRecordFullName());
                          });
 }
 
@@ -125,8 +126,12 @@ void Mnemosyne::onRecordUpdate(const Record &record) {
     m_eventValidator->validate(record.getContentData().value(), [&](const auto &eventData) {
         const auto &eventFullName = eventData.getFullName();
         m_seenEvents->addEvent(eventFullName);
+
+        auto replicationSeqId = m_dagSync.getReplicationSeqId();
+        if (replicationSeqId.size() == m_config.maxCountedReplication + 1)
+            NDN_LOG_INFO(m_config.peerPrefix << " immutable record ends at " << *replicationSeqId.begin());
     }, [](const auto &data, const auto &error) {
-        NDN_LOG_INFO("Verification error on event record " << data.getFullName() << ": " << error);
+        NDN_LOG_ERROR("Verification error on event record " << data.getFullName() << ": " << error);
     });
 }
 
@@ -134,10 +139,10 @@ bool Mnemosyne::onBackup() {
     auto b = m_seenEvents->encode();
     std::string page((const char *) b.wire(), b.size());
     if (m_backend->placeMetaData(SEEN_EVENT_BACKUP_KEY, page)) {
-        NDN_LOG_INFO("Mnemosyne: seen event metadata backup write success");
+        NDN_LOG_TRACE("Mnemosyne: seen event metadata backup write success");
         return true;
     } else {
-        NDN_LOG_INFO("Mnemosyne: seen event metadata backup write failure");
+        NDN_LOG_TRACE("Mnemosyne: seen event metadata backup write failure");
         return false;
     }
 }
