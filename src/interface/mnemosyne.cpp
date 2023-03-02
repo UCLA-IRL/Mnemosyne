@@ -58,9 +58,9 @@ void Mnemosyne::onBackupRecovery() {
         try {
             ndn::Block block(make_span(reinterpret_cast<const uint8_t *>(s->data()), s->size()));
             m_seenEvents->decode(block);
-            std::cerr << "Backend: seen event recovery success\n";
+            NDN_LOG_DEBUG("seen event recovery success");
         } catch (const std::exception &e) {
-            std::cerr << "Backend: seen event recovery failed with exception: " << e.what() << "\n";
+            NDN_LOG_DEBUG("seen event recovery failed with exception: " << e.what());
             exit(1);
         }
     }
@@ -84,7 +84,7 @@ void Mnemosyne::onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::Missi
     }
     for (const auto &s: info) {
         for (ndn::svs::SeqNo i = s.low; i <= s.high; i++) {
-            NDN_LOG_TRACE("Interface Sync: " << groupId << " Fetching item " << s.nodeId << " " << i);
+            NDN_LOG_DEBUG("Interface Sync " << groupId << " Fetching item " << s.nodeId << " " << i);
             m_interfaceSyncs[groupId]->fetchData(s.nodeId, i, [this, s, i](const Data &data) {
                 onEventData(data, s.nodeId, i);
             });
@@ -95,16 +95,16 @@ void Mnemosyne::onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::Missi
 void Mnemosyne::onEventData(const Data &data, const ndn::Name& producer, ndn::svs::SeqNo seqId) {
     std::uniform_int_distribution<uint32_t> delayDistribution(0,
                                                               m_config.insertBackoffMaxMs);
-    NDN_LOG_TRACE("Received event data " << data.getFullName());
+    NDN_LOG_DEBUG("Received event data " << data.getFullName());
     if (m_seenEvents->hasEvent(data.getFullName())) return;
     m_scheduler.schedule(time::milliseconds(delayDistribution(m_randomEngine)),
                          [this, data, producer, seqId]() {
                              if (m_seenEvents->hasEvent(data.getFullName())) {
-                                 NDN_LOG_TRACE("Event data " << data.getFullName()
+                                 NDN_LOG_DEBUG("Event data " << data.getFullName()
                                                             << " found in DAG. ");
                                  return;
                              }
-                             NDN_LOG_TRACE("Event data " << data.getFullName()
+                             NDN_LOG_DEBUG("Event data " << data.getFullName()
                                                         << " not found in DAG. Publishing...");
                              Record record(data, producer, seqId);
                              auto ret = m_dagSync.createRecord(record);
@@ -142,10 +142,10 @@ bool Mnemosyne::onBackup() {
     auto b = m_seenEvents->encode();
     std::string page((const char *) b.wire(), b.size());
     if (m_backend->placeMetaData(SEEN_EVENT_BACKUP_KEY, page)) {
-        NDN_LOG_TRACE("Mnemosyne: seen event metadata backup write success");
+        NDN_LOG_DEBUG("seen event metadata backup write success");
         return true;
     } else {
-        NDN_LOG_TRACE("Mnemosyne: seen event metadata backup write failure");
+        NDN_LOG_DEBUG("seen event metadata backup write failure");
         return false;
     }
 }

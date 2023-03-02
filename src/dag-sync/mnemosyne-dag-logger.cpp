@@ -39,7 +39,7 @@ MnemosyneDagLogger::MnemosyneDagLogger(const LoggerConfig &config,
                                                  m_backend,
                                                  getSecurityOption(keychain, recordValidator, config.peerPrefix))),
           m_randomEngine(std::random_device()()), m_KnownSelfSeqId(0), m_onRecordCallback(onRecordCallback) {
-    NDN_LOG_TRACE("Mnemosyne Initialization Start");
+    NDN_LOG_DEBUG("Mnemosyne Initialization Start");
 
     if (config.precedingRecordNum <= 1) {
         NDN_THROW(std::runtime_error("Bad config"));
@@ -56,7 +56,7 @@ MnemosyneDagLogger::MnemosyneDagLogger(const LoggerConfig &config,
                 Record::getRecordName(m_config.peerPrefix, 0));
     }
 
-    NDN_LOG_TRACE("Mnemosyne Dag Logger Initialization Succeed");
+    NDN_LOG_DEBUG("Mnemosyne Dag Logger Initialization Succeed");
 }
 
 void MnemosyneDagLogger::restoreRecordSyncVersionVector() {
@@ -66,9 +66,9 @@ void MnemosyneDagLogger::restoreRecordSyncVersionVector() {
         try {
             ndn::Block block(make_span(reinterpret_cast<const uint8_t *>(page->data()), page->size()));
             m_dagCollectedVersions = svs::VersionVector(block);
-            NDN_LOG_TRACE("Version vector recovery success");
+            NDN_LOG_DEBUG("Version vector recovery success");
         } catch (const std::exception &e) {
-            NDN_LOG_TRACE("Version vector recovery failed with exception: " << e.what());
+            NDN_LOG_DEBUG("Version vector recovery failed with exception: " << e.what());
             exit(1);
         }
     }
@@ -101,7 +101,7 @@ void MnemosyneDagLogger::restoreRecordSyncVersionVector() {
             m_KnownSelfSeqId = seq;
         }
     }
-    NDN_LOG_TRACE("STEP 1: attempted restoring sequence id to " << m_dagCollectedVersions.toStr()
+    NDN_LOG_DEBUG("STEP 1: attempted restoring sequence id to " << m_dagCollectedVersions.toStr()
                                                                << " in the Mnemosyne Dag Sync");
     m_backend->addBackupCallback([this]() { return versionBackupCallback(); });
 }
@@ -116,13 +116,13 @@ void MnemosyneDagLogger::addPublicGenesisRecord() {
         m_lastRecordInChains.emplace(tempProducer, Record::getGenesisRecordFullName(Record::getRecordName(
                 tempProducer, 0)));
     }
-    NDN_LOG_TRACE(" - " << i << " genesis records have been added to the Mnemosyne");
+    NDN_LOG_DEBUG(" - " << i << " genesis records have been added to the Mnemosyne");
 }
 
 MnemosyneDagLogger::~MnemosyneDagLogger() = default;
 
 ReturnCode MnemosyneDagLogger::createRecord(Record &record) {
-    NDN_LOG_TRACE("[MnemosyneDagLogger::createRecord] create record called");
+    NDN_LOG_DEBUG("[MnemosyneDagLogger::createRecord] create record called");
 
     if (Record::getRecordSeqId(m_lastRecordInChains.at(m_config.peerPrefix)) < m_KnownSelfSeqId) {
         NDN_LOG_WARN("[MnemosyneDagLogger::createRecord] waiting for record discovery: " << m_KnownSelfSeqId);
@@ -152,7 +152,7 @@ ReturnCode MnemosyneDagLogger::createRecord(Record &record) {
 
     //send sync interest
     auto seqId = m_dagSync->publishData(record, time::minutes(5), m_config.peerPrefix, tlv::Data);
-    NDN_LOG_TRACE("[MnemosyneDagLogger::createRecord] Added a new record:" << record.getRecordFullName().toUri());
+    NDN_LOG_DEBUG("[MnemosyneDagLogger::createRecord] Added a new record:" << record.getRecordFullName().toUri());
     // add new record into the ledger
     addReceivedRecord(std::make_unique<Record>(record), m_config.peerPrefix, seqId);
     return ReturnCode::noError(record.getRecordFullName().toUri());
@@ -170,19 +170,19 @@ uint64_t MnemosyneDagLogger::getMaxReferenceSeqNo() const {
 
 void MnemosyneDagLogger::onUpdate(const std::vector<ndn::svs::MissingDataInfo> &info) {
     for (const auto &stream: info) {
-        NDN_LOG_TRACE("Sync discovered Data " << stream.nodeId << " " << stream.low << " - " << stream.high);
+        NDN_LOG_DEBUG("Sync discovered Data " << stream.nodeId << " " << stream.low << " - " << stream.high);
         if (stream.nodeId == m_config.peerPrefix) {
             m_KnownSelfSeqId = std::max(m_KnownSelfSeqId, stream.high);
         }
         auto lastNo = m_dagCollectedVersions.get(stream.nodeId);
         if (lastNo >= stream.low) {
-            NDN_LOG_TRACE("Skipped in-backend item " << stream.nodeId << " " << stream.low);
+            NDN_LOG_DEBUG("Skipped in-backend item " << stream.nodeId << " " << stream.low);
         } else {
             lastNo = stream.low;
         }
 
         for (svs::SeqNo i = lastNo; i <= stream.high; i++) {
-            NDN_LOG_TRACE("Fetching item " << stream.nodeId << " " << i);
+            NDN_LOG_DEBUG("Fetching item " << stream.nodeId << " " << i);
             m_dagSync->fetchRecord(stream.nodeId, i, [nodeId = stream.nodeId, i, this](const Data &data) {
                                        auto receivedData = std::make_shared<Data>(data);
                                        try {
@@ -206,7 +206,7 @@ void MnemosyneDagLogger::onUpdate(const std::vector<ndn::svs::MissingDataInfo> &
 }
 
 void MnemosyneDagLogger::addReceivedRecord(std::unique_ptr<Record> record, const Name &producer, svs::SeqNo seqId) {
-    NDN_LOG_TRACE("Add record to ledger: " << record->getRecordFullName());
+    NDN_LOG_DEBUG("Add record to ledger: " << record->getRecordFullName());
     const shared_ptr<const Data> &recordData = record->getEncodedData();
 
     //backend update
@@ -239,7 +239,7 @@ bool MnemosyneDagLogger::versionBackupCallback() {
     backupPage.encode();
     std::string page((const char *) backupPage.wire(), backupPage.size());
     if (m_backend->placeMetaData(SEQ_NO_BACKUP_KEY, page)) {
-        NDN_LOG_TRACE("Version Vector backup write success");
+        NDN_LOG_DEBUG("Version Vector backup write success");
         return true;
     } else {
         return false;
