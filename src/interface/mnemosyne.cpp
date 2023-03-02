@@ -20,6 +20,7 @@ const std::string Mnemosyne::SEEN_EVENT_BACKUP_KEY = "MnemosyneSeenEvent";
 Mnemosyne::Mnemosyne(const Config &config, KeyChain &keychain, Face &network,
                      std::shared_ptr<ndn::security::Validator> recordValidator,
                      std::shared_ptr<ndn::security::Validator> eventValidator) :
+        m_randomEngine(std::random_device()()),
         m_config(config),
         m_keychain(keychain),
         m_backend(std::make_shared<Backend>(config.databaseType, config.databasePath, m_config.seqNoBackupFreq)),
