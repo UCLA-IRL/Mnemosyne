@@ -87,7 +87,7 @@ void Mnemosyne::onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::Missi
             NDN_LOG_DEBUG("Interface Sync " << groupId << " Fetching item " << s.nodeId << " " << i);
             m_interfaceSyncs[groupId]->fetchData(s.nodeId, i, [this, s, i](const Data &data) {
                 onEventData(data, s.nodeId, i);
-            });
+            }, m_config.interfaceSyncRetries);
         }
     }
 }

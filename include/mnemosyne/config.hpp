@@ -24,6 +24,8 @@ class Config : public LoggerConfig {
     uint32_t insertBackoffMaxMs = 1000;
     std::chrono::seconds seenEventTtl = std::chrono::minutes(1);
     std::chrono::seconds startUpDelay = std::chrono::seconds(5);
+
+    uint32_t interfaceSyncRetries = 3;
     /**
      * The interface pub/sub prefix, under which an publication can reach all Mnemosyne loggers.
      */
