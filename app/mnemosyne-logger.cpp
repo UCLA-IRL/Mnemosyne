@@ -20,8 +20,8 @@ int main(int argc, char* argv[]) {
             ("help,h", "Display this help message")
             ("dag-sync-prefix,m", po::value<std::string>()->default_value("/ndn/broadcast/mnemosyne-dag"), "The prefix for DAG synchronization")
             ("dag-hint-prefix,i", po::value<std::string>()->default_value("/ndn/broadcast/mnemosyne-hint"), "The prefix for DAG recovery hint")
-            ("interface-ps-prefix,p", po::value<std::vector<std::string>>()->multitoken()->zero_tokens(), "The prefix for Interface Pub/Sub")
-            ("interface-sync-prefix,s", po::value<std::vector<std::string>>()->multitoken()->zero_tokens(), "The prefix for Interface Sync")
+            ("interface-ps-prefix,p", po::value<std::vector<std::string>>()->multitoken(), "The prefix for Interface Pub/Sub")
+            ("interface-sync-prefix,s", po::value<std::vector<std::string>>()->multitoken(), "The prefix for Interface Sync")
             ("logger-prefix,l", po::value<std::string>(), "The prefix for the logger")
             ("trust-anchor,a", po::value<std::string>()->default_value("./mnemosyne-anchor.cert"), "The trust anchor file path for the logger")
             ("database-type,t", po::value<std::string>()->default_value("leveldb"), "The database type for the logger")
@@ -49,11 +49,16 @@ int main(int argc, char* argv[]) {
 
     //interface processing
     std::set<Name> ps_set, sync_set;
-    for (const auto& p: vm["interface-ps-prefix"].as<std::vector<std::string>>()) {
-        ps_set.emplace(p);
+    if (!vm["interface-ps-prefix"].empty()) {
+        for (const auto &p: vm["interface-ps-prefix"].as<std::vector<std::string>>()) {
+            ps_set.emplace(p);
+        }
     }
-    for (const auto& p: vm["interface-sync-prefix"].as<std::vector<std::string>>()) {
-        sync_set.emplace(p);
+
+    if (!vm["interface-sync-prefix"].empty()) {
+        for (const auto &p: vm["interface-sync-prefix"].as<std::vector<std::string>>()) {
+            sync_set.emplace(p);
+        }
     }
 
     boost::asio::io_service ioService;
