@@ -28,6 +28,7 @@ Mnemosyne::Mnemosyne(const Config &config, KeyChain &keychain, Face &network,
         m_eventValidator(std::move(eventValidator)),
         m_seenEvents(std::make_unique<interface::SeenEventSet>(config.seenEventTtl)),
         m_ready(false),
+        m_lastImmutableSeqNo(0),
         m_dagSync(m_config, m_backend, keychain, network, std::move(recordValidator),
                   [this](const auto &record) { onRecordUpdate(record); }) {
     for (const auto &psName: config.svsPubSubInterfacePrefixes) {
@@ -93,8 +94,9 @@ void Mnemosyne::onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::Missi
 }
 
 void Mnemosyne::onEventData(const Data &data, const ndn::Name& producer, ndn::svs::SeqNo seqId) {
-    std::uniform_int_distribution<uint32_t> delayDistribution(0,
-                                                              m_config.insertBackoffMaxMs);
+    uint32_t delay_max = m_selfInsertEventProducers.count(producer) > 0 ?
+            m_config.selfInsertBackoffMs : m_config.insertBackoffMaxMs;
+    std::uniform_int_distribution<uint32_t> delayDistribution(0, delay_max);
     NDN_LOG_DEBUG("Received event data " << data.getFullName());
     if (m_seenEvents->hasEvent(data.getFullName())) return;
     m_scheduler.schedule(time::milliseconds(delayDistribution(m_randomEngine)),
@@ -106,6 +108,7 @@ void Mnemosyne::onEventData(const Data &data, const ndn::Name& producer, ndn::sv
                              }
                              NDN_LOG_DEBUG("Event data " << data.getFullName()
                                                         << " not found in DAG. Publishing...");
+                             m_selfInsertEventProducers.insert(producer);
                              Record record(data, producer, seqId);
                              auto ret = m_dagSync.createRecord(record);
                              if (ret.success())
@@ -130,9 +133,21 @@ void Mnemosyne::onRecordUpdate(const Record &record) {
         const auto &eventFullName = eventData.getFullName();
         m_seenEvents->addEvent(eventFullName);
 
+        //remove self inserted event
+        for (size_t i = eventFullName.size(); i > 0; i --) {
+            auto it = m_selfInsertEventProducers.find(eventFullName.getPrefix(i));
+            if (it != m_selfInsertEventProducers.end()) {
+                m_selfInsertEventProducers.erase(it);
+                break;
+            }
+        }
+
+        // logging replication id
         auto replicationSeqId = m_dagSync.getMaxReferenceSeqNo();
-        if (replicationSeqId != 0)
+        if (replicationSeqId != m_lastImmutableSeqNo) {
+            m_lastImmutableSeqNo = replicationSeqId;
             NDN_LOG_INFO(m_config.peerPrefix << " immutable record ends at " << replicationSeqId);
+        }
     }, [](const auto &data, const auto &error) {
         NDN_LOG_ERROR("Verification error on event record " << data.getFullName() << ": " << error);
     });

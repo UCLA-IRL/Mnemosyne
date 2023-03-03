@@ -67,6 +67,8 @@ class Mnemosyne {
     std::shared_ptr<Backend> m_backend;
     std::shared_ptr<ndn::security::Validator> m_eventValidator;
     std::unique_ptr<interface::SeenEventSet> m_seenEvents;
+    std::set<ndn::Name> m_selfInsertEventProducers; // TODO expiry?
+    uint64_t m_lastImmutableSeqNo;
     MnemosyneDagLogger m_dagSync;
 };
 
