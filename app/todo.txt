@@ -1,2 +1,1 @@
 TODO build a client
-TODO 2-layer random delay

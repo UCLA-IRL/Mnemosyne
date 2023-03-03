@@ -1,6 +1,7 @@
 #include "mnemosyne/mnemosyne.hpp"
 #include "mnemosyne/backend.hpp"
 #include "interface/seen-event-set.h"
+#include "interface/self-inserted-set.h"
 #include "util.hpp"
 
 #include <ndn-cxx/util/logger.hpp>
@@ -27,6 +28,7 @@ Mnemosyne::Mnemosyne(const Config &config, KeyChain &keychain, Face &network,
         m_scheduler(network.getIoService()),
         m_eventValidator(std::move(eventValidator)),
         m_seenEvents(std::make_unique<interface::SeenEventSet>(config.seenEventTtl)),
+        m_selfInsertEventProducers(std::make_unique<interface::SelfInsertedSet>(config.selfInsertResetFreq)),
         m_ready(false),
         m_lastImmutableSeqNo(0),
         m_dagSync(m_config, m_backend, keychain, network, std::move(recordValidator),
@@ -73,7 +75,7 @@ void Mnemosyne::onSubscriptionData(const svs::SVSPubSub::SubscriptionData &subDa
         return;
     }
     m_eventValidator->validate(*subData.packet, [this, prefix=subData.producerPrefix, seqId=subData.seqNo](const auto& data) {
-        onEventData(data, prefix, seqId);
+        onEventData(data, prefix);
     }, [](const Data &eventData, auto &&error) {
         NDN_LOG_ERROR("Event data " << eventData.getFullName() << " verification error: " << error);
     });
@@ -87,14 +89,14 @@ void Mnemosyne::onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::Missi
         for (ndn::svs::SeqNo i = s.low; i <= s.high; i++) {
             NDN_LOG_DEBUG("Interface Sync " << groupId << " Fetching item " << s.nodeId << " " << i);
             m_interfaceSyncs[groupId]->fetchData(s.nodeId, i, [this, s, i](const Data &data) {
-                onEventData(data, s.nodeId, i);
+                onEventData(data, s.nodeId);
             }, m_config.interfaceSyncRetries);
         }
     }
 }
 
-void Mnemosyne::onEventData(const Data &data, const ndn::Name& producer, ndn::svs::SeqNo seqId) {
-    auto delayedEventInsert = [this, data, producer, seqId]() {
+void Mnemosyne::onEventData(const Data &data, const ndn::Name& producer) {
+    auto delayedEventInsert = [this, data, producer]() {
         if (m_seenEvents->hasEvent(data.getFullName())) {
             NDN_LOG_DEBUG("Event data " << data.getFullName()
                                         << " found in DAG. ");
@@ -102,8 +104,8 @@ void Mnemosyne::onEventData(const Data &data, const ndn::Name& producer, ndn::sv
         }
         NDN_LOG_DEBUG("Event data " << data.getFullName()
                                     << " not found in DAG. Publishing...");
-        m_selfInsertEventProducers.insert(producer);
-        Record record(data, producer, seqId);
+        m_selfInsertEventProducers->insert(producer);
+        Record record(data, producer);
         auto ret = m_dagSync.createRecord(record);
         if (ret.success())
             NDN_LOG_INFO(m_config.peerPrefix << " Published event data " << data.getFullName()
@@ -111,13 +113,13 @@ void Mnemosyne::onEventData(const Data &data, const ndn::Name& producer, ndn::sv
     };
 
     NDN_LOG_DEBUG("Received event data " << data.getFullName());
-    if (m_selfInsertEventProducers.count(producer)) {
+    if (m_selfInsertEventProducers->count(producer)) {
         delayedEventInsert();
         return;
     }
 
     std::uniform_int_distribution<uint32_t> delayDistribution(m_config.insertBackoffMinMs, m_config.insertBackoffMaxMs);
-    if (m_seenEvents->hasEvent(data.getFullName()))
+    if (!m_seenEvents->hasEvent(data.getFullName()))
         m_scheduler.schedule(time::milliseconds(delayDistribution(m_randomEngine)), delayedEventInsert);
 }
 
@@ -138,13 +140,7 @@ void Mnemosyne::onRecordUpdate(const Record &record) {
         m_seenEvents->addEvent(eventFullName);
 
         //remove self inserted event
-        for (size_t i = eventFullName.size(); i > 0; i --) {
-            auto it = m_selfInsertEventProducers.find(eventFullName.getPrefix(i));
-            if (it != m_selfInsertEventProducers.end()) {
-                m_selfInsertEventProducers.erase(it);
-                break;
-            }
-        }
+        m_selfInsertEventProducers->receivedOther(eventFullName);
 
         // logging replication id
         auto replicationSeqId = m_dagSync.getMaxReferenceSeqNo();

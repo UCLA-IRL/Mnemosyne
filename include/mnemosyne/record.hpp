@@ -36,7 +36,7 @@ class Record {
      * Construct a new record.
      * @p identifier, input, the unique identifer of the record.
      */
-    Record(const Data &eventItem, Name eventProducer, uint64_t seqId);
+    Record(const Data &eventItem, Name eventProducer);
 
     /**
      * Add a new record payload item into the record.

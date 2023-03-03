@@ -48,7 +48,7 @@ Name Record::getGenesisRecordFullName(const Name &recordName) {
     return d.getFullName();
 }
 
-Record::Record(const Data &eventItem, Name eventProducer, uint64_t seqId)
+Record::Record(const Data &eventItem, Name eventProducer)
         : m_data(nullptr) {
     setContentData(eventItem);
 }

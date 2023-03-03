@@ -10,6 +10,7 @@ namespace mnemosyne {
 
 namespace interface {
 class SeenEventSet;
+class SelfInsertedSet;
 }
 
 class Mnemosyne {
@@ -37,7 +38,7 @@ class Mnemosyne {
 
     void onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::MissingDataInfo> &info);
 
-    void onEventData(const Data &data, const ndn::Name& producer, ndn::svs::SeqNo seqId);
+    void onEventData(const Data &data, const ndn::Name& producer);
 
     ndn::svs::SecurityOptions getSecurityOption();
 
@@ -67,7 +68,7 @@ class Mnemosyne {
     std::shared_ptr<Backend> m_backend;
     std::shared_ptr<ndn::security::Validator> m_eventValidator;
     std::unique_ptr<interface::SeenEventSet> m_seenEvents;
-    std::set<ndn::Name> m_selfInsertEventProducers; // TODO expiry?
+    std::unique_ptr<interface::SelfInsertedSet> m_selfInsertEventProducers;
     uint64_t m_lastImmutableSeqNo;
     MnemosyneDagLogger m_dagSync;
 };

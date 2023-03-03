@@ -37,6 +37,8 @@ set(MNEMOSYNE_LIB_SOURCE_FILES
         src/dag-sync/replication-counter.h
         src/interface/seen-event-set.cpp
         src/interface/seen-event-set.h
+        src/interface/self-inserted-set.cpp
+        src/interface/self-inserted-set.h
         src/interface/mnemosyne.cpp
         src/record.cpp
         src/util.cpp

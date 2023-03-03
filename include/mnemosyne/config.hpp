@@ -23,6 +23,7 @@ class Config : public LoggerConfig {
      */
     uint32_t insertBackoffMaxMs = 1000;
     uint32_t insertBackoffMinMs = 50;
+    uint32_t selfInsertResetFreq = 500;
     std::chrono::seconds seenEventTtl = std::chrono::minutes(1);
     std::chrono::seconds startUpDelay = std::chrono::seconds(5);
 
