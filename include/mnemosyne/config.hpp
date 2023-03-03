@@ -22,7 +22,7 @@ class Config : public LoggerConfig {
      * Interface only configs
      */
     uint32_t insertBackoffMaxMs = 1000;
-    uint32_t selfInsertBackoffMs = 200;
+    uint32_t insertBackoffMinMs = 50;
     std::chrono::seconds seenEventTtl = std::chrono::minutes(1);
     std::chrono::seconds startUpDelay = std::chrono::seconds(5);
 

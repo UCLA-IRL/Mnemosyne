@@ -94,27 +94,31 @@ void Mnemosyne::onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::Missi
 }
 
 void Mnemosyne::onEventData(const Data &data, const ndn::Name& producer, ndn::svs::SeqNo seqId) {
-    uint32_t delay_max = m_selfInsertEventProducers.count(producer) > 0 ?
-            m_config.selfInsertBackoffMs : m_config.insertBackoffMaxMs;
-    std::uniform_int_distribution<uint32_t> delayDistribution(0, delay_max);
+    auto delayedEventInsert = [this, data, producer, seqId]() {
+        if (m_seenEvents->hasEvent(data.getFullName())) {
+            NDN_LOG_DEBUG("Event data " << data.getFullName()
+                                        << " found in DAG. ");
+            return;
+        }
+        NDN_LOG_DEBUG("Event data " << data.getFullName()
+                                    << " not found in DAG. Publishing...");
+        m_selfInsertEventProducers.insert(producer);
+        Record record(data, producer, seqId);
+        auto ret = m_dagSync.createRecord(record);
+        if (ret.success())
+            NDN_LOG_INFO(m_config.peerPrefix << " Published event data " << data.getFullName()
+                                             << " in record " << Record::getRecordSeqId(record.getRecordFullName()));
+    };
+
+    if (m_selfInsertEventProducers.count(producer)) {
+        delayedEventInsert();
+        return;
+    }
+
+    std::uniform_int_distribution<uint32_t> delayDistribution(m_config.insertBackoffMinMs, m_config.insertBackoffMaxMs);
     NDN_LOG_DEBUG("Received event data " << data.getFullName());
     if (m_seenEvents->hasEvent(data.getFullName())) return;
-    m_scheduler.schedule(time::milliseconds(delayDistribution(m_randomEngine)),
-                         [this, data, producer, seqId]() {
-                             if (m_seenEvents->hasEvent(data.getFullName())) {
-                                 NDN_LOG_DEBUG("Event data " << data.getFullName()
-                                                            << " found in DAG. ");
-                                 return;
-                             }
-                             NDN_LOG_DEBUG("Event data " << data.getFullName()
-                                                        << " not found in DAG. Publishing...");
-                             m_selfInsertEventProducers.insert(producer);
-                             Record record(data, producer, seqId);
-                             auto ret = m_dagSync.createRecord(record);
-                             if (ret.success())
-                                NDN_LOG_INFO(m_config.peerPrefix << " Published event data " << data.getFullName()
-                                        << " in record " << Record::getRecordSeqId(record.getRecordFullName()));
-                         });
+    m_scheduler.schedule(time::milliseconds(delayDistribution(m_randomEngine)), delayedEventInsert);
 }
 
 ndn::svs::SecurityOptions Mnemosyne::getSecurityOption() {
