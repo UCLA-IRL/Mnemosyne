@@ -110,15 +110,15 @@ void Mnemosyne::onEventData(const Data &data, const ndn::Name& producer, ndn::sv
                                              << " in record " << Record::getRecordSeqId(record.getRecordFullName()));
     };
 
+    NDN_LOG_DEBUG("Received event data " << data.getFullName());
     if (m_selfInsertEventProducers.count(producer)) {
         delayedEventInsert();
         return;
     }
 
     std::uniform_int_distribution<uint32_t> delayDistribution(m_config.insertBackoffMinMs, m_config.insertBackoffMaxMs);
-    NDN_LOG_DEBUG("Received event data " << data.getFullName());
-    if (m_seenEvents->hasEvent(data.getFullName())) return;
-    m_scheduler.schedule(time::milliseconds(delayDistribution(m_randomEngine)), delayedEventInsert);
+    if (m_seenEvents->hasEvent(data.getFullName()))
+        m_scheduler.schedule(time::milliseconds(delayDistribution(m_randomEngine)), delayedEventInsert);
 }
 
 ndn::svs::SecurityOptions Mnemosyne::getSecurityOption() {
