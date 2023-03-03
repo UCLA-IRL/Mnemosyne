@@ -21,7 +21,7 @@ void periodicAddRecord(KeyChain &keychain, shared_ptr<MnemosyneDagLogger> ledger
     data.setContent(makeStringBlock(tlv::Content, std::to_string(distribution(random_gen))));
     keychain.sign(data, signingWithSha256());
 
-    Record record(data, ledger->getPeerPrefix(), 1);
+    Record record(data, ledger->getPeerPrefix());
     ledger->createRecord(record);
 
     // schedule for the next record generation

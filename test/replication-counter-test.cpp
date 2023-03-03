@@ -7,7 +7,7 @@ using namespace ndn;
 
 Record
 makeRecord(const ndn::Name &producer, const ndn::Name &refTo, uint64_t seqId) {
-    Record record(Data(), producer, 1);
+    Record record(Data(), producer);
     record.addPointer(Record::getRecordName(refTo, seqId));
     auto data = make_shared<Data>(Record::getRecordName(producer, 1));
     data->setSignatureInfo(SignatureInfo(tlv::SignatureSha256WithRsa));
