@@ -29,6 +29,9 @@ class LoggerConfig {
     LoggerConfig &setDatabase(std::string dbType, std::string dbConfig = "") {
         databaseType = std::move(dbType);
         databasePath = std::move(dbConfig);
+        if (databaseType == "memory") {
+            seqNoBackupFreq = std::numeric_limits<uint32_t>::max(); // no need for backup since memory is volatile anyway
+        }
         return *this;
     }
 
