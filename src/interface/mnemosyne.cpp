@@ -20,14 +20,13 @@ Mnemosyne::Mnemosyne(const Config &config, KeyChain &keychain, Face &network,
         m_randomEngine(std::random_device()()),
         m_config(config),
         m_keychain(keychain),
-        m_backend(std::make_shared<Backend>(config.databaseType, config.databasePath, m_config.seqNoBackupFreq)),
         m_scheduler(network.getIoService()),
         m_eventValidator(std::move(eventValidator)),
         m_seenEvents(std::make_unique<interface::SeenEventSet>(config.seenEventTtl)),
         m_selfInsertEventProducers(std::make_unique<interface::SelfInsertedSet>(config.selfInsertResetFreq)),
         m_ready(false),
         m_lastImmutableSeqNo(0),
-        m_dagSync(m_config, m_backend, keychain, network, std::move(recordValidator),
+        m_dagSync(m_config, keychain, network, std::move(recordValidator),
                   [this](const auto &record) { onRecordUpdate(record); }) {
     for (const auto &psName: config.svsPubSubInterfacePrefixes) {
         m_interfacePubSubs.emplace_back(psName, config.peerPrefix, network, [](const auto &i) {}, getSecurityOption());
@@ -53,7 +52,7 @@ void Mnemosyne::onSubscriptionData(const svs::SVSPubSub::SubscriptionData &subDa
         NDN_LOG_WARN("error");
         return;
     }
-    m_eventValidator->validate(*subData.packet, [this, prefix=subData.producerPrefix, seqId=subData.seqNo](const auto& data) {
+    m_eventValidator->validate(*subData.packet, [this, prefix=subData.producerPrefix](const auto& data) {
         onEventData(data, prefix);
     }, [](const Data &eventData, auto &&error) {
         NDN_LOG_ERROR("Event data " << eventData.getFullName() << " verification error: " << error);
@@ -67,7 +66,7 @@ void Mnemosyne::onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::Missi
     for (const auto &s: info) {
         for (ndn::svs::SeqNo i = s.low; i <= s.high; i++) {
             NDN_LOG_DEBUG("Interface Sync " << groupId << " Fetching item " << s.nodeId << " " << i);
-            m_interfaceSyncs[groupId]->fetchData(s.nodeId, i, [this, s, i](const Data &data) {
+            m_interfaceSyncs[groupId]->fetchData(s.nodeId, i, [this, s](const Data &data) {
                 onEventData(data, s.nodeId);
             }, m_config.interfaceSyncRetries);
         }

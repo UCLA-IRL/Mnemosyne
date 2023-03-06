@@ -29,10 +29,6 @@ class Mnemosyne {
 
     virtual ~Mnemosyne();
 
-    inline std::shared_ptr<Backend> getBackend() {
-        return m_backend;
-    }
-
   private:
     void onSubscriptionData(const svs::SVSPubSub::SubscriptionData &subData);
 
@@ -59,7 +55,6 @@ class Mnemosyne {
     std::mt19937_64 m_randomEngine;
 
     //lower level components
-    std::shared_ptr<Backend> m_backend;
     std::shared_ptr<ndn::security::Validator> m_eventValidator;
     std::unique_ptr<interface::SeenEventSet> m_seenEvents;
     std::unique_ptr<interface::SelfInsertedSet> m_selfInsertEventProducers;

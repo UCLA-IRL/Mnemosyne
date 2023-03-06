@@ -23,12 +23,12 @@ namespace mnemosyne {
 const std::string MnemosyneDagLogger::SEQ_NO_BACKUP_KEY = "SeqNoBackup";
 
 MnemosyneDagLogger::MnemosyneDagLogger(const LoggerConfig &config,
-                                       std::shared_ptr<Backend> backend,
                                        security::KeyChain &keychain,
                                        Face &network,
                                        std::shared_ptr<ndn::security::Validator> recordValidator,
                                        std::function<void(const Record &)> onRecordCallback)
-        : m_config(config), m_backend(std::move(backend)),
+        : m_config(config),
+          m_backend(std::make_shared<Backend>(config.databaseType, config.databasePath, m_config.seqNoBackupFreq)),
           m_dagReferenceChecker(std::make_unique<DagReferenceChecker>(m_backend,
                                                                       std::bind(&MnemosyneDagLogger::addReceivedRecord,
                                                                                 this, _1, _2, _3))),
