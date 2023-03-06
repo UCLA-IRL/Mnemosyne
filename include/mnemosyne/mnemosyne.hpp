@@ -44,12 +44,6 @@ class Mnemosyne {
 
     void onRecordUpdate(const Record &record);
 
-    void onBackupRecovery();
-
-    bool onBackup();
-
-    static const std::string SEEN_EVENT_BACKUP_KEY;
-
   protected:
 
 

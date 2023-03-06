@@ -14,10 +14,6 @@ NDN_LOG_INIT(mnemosyne.impl);
 using namespace ndn;
 namespace mnemosyne {
 
-
-const std::string Mnemosyne::SEEN_EVENT_BACKUP_KEY = "MnemosyneSeenEvent";
-
-
 Mnemosyne::Mnemosyne(const Config &config, KeyChain &keychain, Face &network,
                      std::shared_ptr<ndn::security::Validator> recordValidator,
                      std::shared_ptr<ndn::security::Validator> eventValidator) :
@@ -50,23 +46,6 @@ Mnemosyne::Mnemosyne(const Config &config, KeyChain &keychain, Face &network,
                                  ps.subscribeToProducer(Name("/"), [this](const auto &d) { onSubscriptionData(d); });
                              }
                          });
-
-    onBackupRecovery();
-    m_backend->addBackupCallback([this]() { return onBackup(); });
-}
-
-void Mnemosyne::onBackupRecovery() {
-    auto s = m_backend->getMetaData(SEEN_EVENT_BACKUP_KEY);
-    if (s) {
-        try {
-            ndn::Block block(make_span(reinterpret_cast<const uint8_t *>(s->data()), s->size()));
-            m_seenEvents->decode(block);
-            NDN_LOG_DEBUG("seen event recovery success");
-        } catch (const std::exception &e) {
-            NDN_LOG_DEBUG("seen event recovery failed with exception: " << e.what());
-            exit(1);
-        }
-    }
 }
 
 void Mnemosyne::onSubscriptionData(const svs::SVSPubSub::SubscriptionData &subData) {
@@ -151,18 +130,6 @@ void Mnemosyne::onRecordUpdate(const Record &record) {
     }, [](const auto &data, const auto &error) {
         NDN_LOG_ERROR("Verification error on event record " << data.getFullName() << ": " << error);
     });
-}
-
-bool Mnemosyne::onBackup() {
-    auto b = m_seenEvents->encode();
-    std::string page((const char *) b.wire(), b.size());
-    if (m_backend->placeMetaData(SEEN_EVENT_BACKUP_KEY, page)) {
-        NDN_LOG_DEBUG("seen event metadata backup write success");
-        return true;
-    } else {
-        NDN_LOG_DEBUG("seen event metadata backup write failure");
-        return false;
-    }
 }
 
 Mnemosyne::~Mnemosyne() = default;
