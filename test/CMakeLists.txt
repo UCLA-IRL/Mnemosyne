@@ -14,7 +14,9 @@ add_executable(dag-sync-test dag-sync-test.cpp)
 target_link_libraries(dag-sync-test PUBLIC mnemosyne)
 
 add_executable(mnemosyne-test-client mnemosyne-test-client.cpp)
-target_link_libraries(mnemosyne-test-client PUBLIC mnemosyne)
+target_compile_options(mnemosyne-test-client PUBLIC ${NDN_CXX_CFLAGS} ${NDN_SVS_CFLAGS})
+target_link_libraries(mnemosyne-test-client PUBLIC ${NDN_CXX_LIBRARIES} ${NDN_SVS_LIBRARIES})
 
 add_executable(mnemosyne-test-client-sync mnemosyne-test-client-sync.cpp)
-target_link_libraries(mnemosyne-test-client-sync PUBLIC mnemosyne)
+target_compile_options(mnemosyne-test-client-sync PUBLIC ${NDN_CXX_CFLAGS} ${NDN_SVS_CFLAGS})
+target_link_libraries(mnemosyne-test-client-sync PUBLIC ${NDN_CXX_LIBRARIES} ${NDN_SVS_LIBRARIES})
