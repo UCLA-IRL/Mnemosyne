@@ -40,7 +40,6 @@ int main(int argc, char **argv) {
     security::KeyChain keychain;
     std::shared_ptr<LoggerConfig> config;
     std::shared_ptr<ndn::security::Validator> validator;
-    std::shared_ptr<Backend> backend;
     try {
         config = std::make_shared<LoggerConfig>("/ndn/broadcast/mnemosyne-dag", "/ndn/broadcast/mnemosyne-hint",
                                                 identity);
@@ -49,13 +48,12 @@ int main(int argc, char **argv) {
         configValidator->load("./test/loggers.schema");
         validator = std::make_shared<ndn::security::ValidatorNull>();
         mkdir("/tmp/mnemosyne-db/", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-        backend = std::make_shared<Backend>(*config);
     }
     catch (const std::exception &e) {
         std::cout << e.what() << std::endl;
         return 1;
     }
-    auto ledger_ptr = new MnemosyneDagLogger(*config, backend, keychain, face, validator);
+    auto ledger_ptr = new MnemosyneDagLogger(*config, keychain, face, validator);
     auto ledger = std::shared_ptr<MnemosyneDagLogger>(ledger_ptr);
 
     Scheduler scheduler(ioService);
