@@ -29,26 +29,26 @@ class Record {
 
     static Name getGenesisRecordFullName(const Name &recordName);
 
-  public: // used for preparing a new record before appending it into the DLedger
+  public: // used for preparing a new record before appending it into the Mnemosyne DAG
     Record() = default;
 
     /**
      * Construct a new record.
      * @p identifier, input, the unique identifer of the record.
      */
-    Record(const Data &eventItem, Name eventProducer);
+    Record(Data eventItem, Name eventProducer);
 
     /**
      * Add a new record payload item into the record.
      * @note This function should only be used to generate a record before adding it to the ledger.
      * @p recordItem, input, the record payload to add.
      */
-    void setContentData(const Data &contentItem);
+    void setContentData(Data contentItem);
 
     /**
      * Get the NDN Data full name of the record.
      * This name is not the identifier used in the constructor of the record.
-     * The name is only generated when adding the record into the DLedger.
+     * The name is only generated when adding the record into the Mnemosyne DAG.
      * @note This function should only be used to parse a record returned from the ledger.
      *       This cannot be used when a record has not been appended into the ledger
      * @p recordItem, input, the record payload to add.
@@ -80,14 +80,14 @@ class Record {
 
     /**
      * Get the pointers from the header.
-     * @note This function is supposed to be used by the DLedger class only
+     * @note This function is supposed to be used by the Mnemosyne DAG class only
      */
     const std::list<Name> &
     getPointersFromHeader() const;
 
     /**
      * Add new pointers to the header.
-     * @note This function is supposed to be used by the DLedger class only
+     * @note This function is supposed to be used by the Mnemosyne DAG class only
      */
     void
     addPointer(const Name &pointer);
@@ -95,7 +95,7 @@ class Record {
     /**
      * validate the pointers in a header.
      * @param numPointers number of pointer according to the config
-     * @note This function is supposed to be used by the DLedger class only
+     * @note This function is supposed to be used by the Mnemosyne DAG class only
      */
     void
     checkPointerCount(uint32_t numPointers) const;

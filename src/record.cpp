@@ -48,9 +48,9 @@ Name Record::getGenesisRecordFullName(const Name &recordName) {
     return d.getFullName();
 }
 
-Record::Record(const Data &eventItem, Name eventProducer)
+Record::Record(Data eventItem, Name eventProducer)
         : m_data(nullptr) {
-    setContentData(eventItem);
+    setContentData(std::move(eventItem));
 }
 
 Record::Record(const std::shared_ptr<const Data> &data)
@@ -77,11 +77,11 @@ Record::getPointersFromHeader() const {
     return m_recordPointers;
 }
 
-void Record::setContentData(const Data &contentItem) {
+void Record::setContentData(Data contentItem) {
     if (m_data != nullptr) {
         BOOST_THROW_EXCEPTION(std::runtime_error("Cannot modify built record"));
     }
-    m_contentData = contentItem;
+    m_contentData = std::move(contentItem);
 }
 
 const optional<Data> &
