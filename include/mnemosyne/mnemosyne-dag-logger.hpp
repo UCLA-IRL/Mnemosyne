@@ -87,7 +87,7 @@ class MnemosyneDagLogger {
     std::unique_ptr<dag::RecordSync> m_dagSync;
     std::function<void(const Record &)> m_onRecordCallback;
 
-    std::unordered_map<Name, Name> m_lastRecordInChains;
+    std::unordered_map<Name, std::pair<Name, uint32_t>> m_lastRecordInChains;
 
     std::mt19937_64 m_randomEngine;
 

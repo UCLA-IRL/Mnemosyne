@@ -52,8 +52,8 @@ MnemosyneDagLogger::MnemosyneDagLogger(const LoggerConfig &config,
     }
 
     if (!m_lastRecordInChains.count(m_config.peerPrefix)) {
-        m_lastRecordInChains[m_config.peerPrefix] = Record::getGenesisRecordFullName(
-                Record::getRecordName(m_config.peerPrefix, 0));
+        m_lastRecordInChains[m_config.peerPrefix] = std::make_pair(Record::getGenesisRecordFullName(
+                Record::getRecordName(m_config.peerPrefix, 0)), m_config.maxSelfReRefCount);
     }
 
     NDN_LOG_DEBUG("Mnemosyne Dag Logger Initialization Succeed");
@@ -91,7 +91,7 @@ void MnemosyneDagLogger::restoreRecordSyncVersionVector() {
                     m_onRecordCallback(m_backend->getRecord(*l.begin()));
                 }
                 seq++;
-                m_lastRecordInChains[producer] = *l.begin();
+                m_lastRecordInChains[producer] = std::make_pair(*l.begin(), m_config.maxSelfReRefCount);
             }
         }
         m_dagSync->getCore().updateSeqNo(seq, producer);
@@ -113,8 +113,8 @@ void MnemosyneDagLogger::addPublicGenesisRecord() {
     while (m_lastRecordInChains.size() < m_config.precedingRecordNum - 1) {
         Name tempProducer = Name().appendNumber(i++);
         if (m_lastRecordInChains.count(tempProducer)) continue;
-        m_lastRecordInChains.emplace(tempProducer, Record::getGenesisRecordFullName(Record::getRecordName(
-                tempProducer, 0)));
+        m_lastRecordInChains.emplace(tempProducer, std::make_pair(Record::getGenesisRecordFullName(Record::getRecordName(
+                tempProducer, 0)), m_config.maxSelfReRefCount));
     }
     NDN_LOG_DEBUG(" - " << i << " genesis records have been added to the Mnemosyne");
 }
@@ -124,7 +124,7 @@ MnemosyneDagLogger::~MnemosyneDagLogger() = default;
 ReturnCode MnemosyneDagLogger::createRecord(Record &record) {
     NDN_LOG_DEBUG("[MnemosyneDagLogger::createRecord] create record called");
 
-    if (Record::getRecordSeqId(m_lastRecordInChains.at(m_config.peerPrefix)) < m_KnownSelfSeqId) {
+    if (Record::getRecordSeqId(m_lastRecordInChains.at(m_config.peerPrefix).first) < m_KnownSelfSeqId) {
         NDN_LOG_WARN("[MnemosyneDagLogger::createRecord] waiting for record discovery: " << m_KnownSelfSeqId);
         return ReturnCode::timingError("Waiting for self record recovery");
     }
@@ -135,17 +135,19 @@ ReturnCode MnemosyneDagLogger::createRecord(Record &record) {
         return ReturnCode::notEnoughTailingRecord();
     }
 
-    record.addPointer(m_lastRecordInChains.at(m_config.peerPrefix));
+    record.addPointer(m_lastRecordInChains.at(m_config.peerPrefix).first);
     m_lastRecordInChains.erase(m_config.peerPrefix);
 
     // randomly shuffle the tailing record list
-    std::vector<std::pair<Name, Name>> recordList;
+    std::vector<std::pair<Name, std::pair<Name, uint32_t>>> recordList;
     std::sample(m_lastRecordInChains.begin(), m_lastRecordInChains.end(),
                 std::back_inserter(recordList), m_config.precedingRecordNum - 1, m_randomEngine);
 
-    for (const auto &[p, tailRecord]: recordList) {
-        record.addPointer(tailRecord);
-        m_lastRecordInChains.erase(Record::getProducerPrefix(tailRecord));
+    for (const auto &[p, pair]: recordList) {
+        record.addPointer(pair.first);
+        if (pair.second == 1)
+            m_lastRecordInChains.erase(p);
+        else m_lastRecordInChains.at(p).second -= 1;
         if (record.getPointersFromHeader().size() >= m_config.precedingRecordNum)
             break;
     }
@@ -219,7 +221,7 @@ void MnemosyneDagLogger::addReceivedRecord(std::unique_ptr<Record> record, const
     m_backend->putRecord(recordData);
 
     //local update
-    m_lastRecordInChains[Record::getProducerPrefix(recordData->getName())] = recordData->getFullName();
+    m_lastRecordInChains[Record::getProducerPrefix(recordData->getName())] = std::make_pair(recordData->getFullName(), m_config.maxSelfReRefCount);
     if (producer == m_config.peerPrefix) {
         m_KnownSelfSeqId = std::max(m_KnownSelfSeqId, Record::getRecordSeqId(record->getRecordFullName()));
     } else {

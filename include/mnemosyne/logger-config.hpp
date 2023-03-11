@@ -56,6 +56,7 @@ class LoggerConfig {
      * max replication count, 0 mean off
      */
     uint32_t maxCountedReplication = 2;
+    uint32_t maxSelfReRefCount = 3;
 
     /**
      * The multicast prefix, under which an Interest can reach to all the peers in the same multicast group.
