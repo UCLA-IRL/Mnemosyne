@@ -64,6 +64,12 @@ void Mnemosyne::onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::Missi
             NDN_LOG_DEBUG("Interface Sync " << groupId << " Fetching item " << s.nodeId << " " << i);
             m_interfaceSyncs[groupId]->fetchData(s.nodeId, i, [this, nodeId = s.nodeId](const Data &data) {
                 onEventData(data, nodeId);
+            },[](const Data &data, const ndn::security::ValidationError &error) {
+                NDN_LOG_ERROR(
+                        "Verification error on Received Event " << data.getFullName() << ": "
+                                                                 << error.getInfo());
+            }, [nodeId = s.nodeId, i](auto &...) {
+                NDN_LOG_ERROR("Fetch timeout on Event " << nodeId << " - Sequence Id " << i);
             }, m_config.interfaceSyncRetries);
         }
     }
