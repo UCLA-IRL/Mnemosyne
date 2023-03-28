@@ -94,6 +94,8 @@ class MnemosyneDagLogger {
     void addPublicGenesisRecord();
 
     void restoreRecordSyncVersionVector();
+
+    void selectAndAddPrecedingRecords(Record &record);
 };
 
 } // namespace mnemosyne

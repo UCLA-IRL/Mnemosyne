@@ -114,7 +114,7 @@ void MnemosyneDagLogger::addPublicGenesisRecord() {
         Name tempProducer = Name().appendNumber(i++);
         if (m_lastRecordInChains.count(tempProducer)) continue;
         m_lastRecordInChains.emplace(tempProducer, std::make_pair(Record::getGenesisRecordFullName(Record::getRecordName(
-                tempProducer, 0)), m_config.maxSelfReRefCount));
+                tempProducer, 0)), 1));
     }
     NDN_LOG_DEBUG(" - " << i << " genesis records have been added to the Mnemosyne");
 }
@@ -135,22 +135,7 @@ ReturnCode MnemosyneDagLogger::createRecord(Record &record) {
         return ReturnCode::notEnoughTailingRecord();
     }
 
-    record.addPointer(m_lastRecordInChains.at(m_config.peerPrefix).first);
-    m_lastRecordInChains.erase(m_config.peerPrefix);
-
-    // randomly shuffle the tailing record list
-    std::vector<std::pair<Name, std::pair<Name, uint32_t>>> recordList;
-    std::sample(m_lastRecordInChains.begin(), m_lastRecordInChains.end(),
-                std::back_inserter(recordList), m_config.precedingRecordNum - 1, m_randomEngine);
-
-    for (const auto &[p, pair]: recordList) {
-        record.addPointer(pair.first);
-        if (pair.second == 1)
-            m_lastRecordInChains.erase(p);
-        else m_lastRecordInChains.at(p).second -= 1;
-        if (record.getPointersFromHeader().size() >= m_config.precedingRecordNum)
-            break;
-    }
+    selectAndAddPrecedingRecords(record);
 
     //send sync interest
     auto seqId = m_dagSync->publishData(record, time::minutes(5), m_config.peerPrefix, tlv::Data);
@@ -158,6 +143,45 @@ ReturnCode MnemosyneDagLogger::createRecord(Record &record) {
     // add new record into the ledger
     addReceivedRecord(std::make_unique<Record>(record), m_config.peerPrefix, seqId);
     return ReturnCode::noError(record.getRecordFullName().toUri());
+}
+
+void MnemosyneDagLogger::selectAndAddPrecedingRecords(Record &record) {
+    record.addPointer(m_lastRecordInChains.at(m_config.peerPrefix).first);
+    m_lastRecordInChains.erase(m_config.peerPrefix);
+
+    // randomly shuffle the tailing record list
+    std::vector<uint32_t> refCountInLastRecord(m_config.maxSelfReRefCount + 1, 0);
+    std::vector<std::pair<Name, uint32_t>> candidateList;
+    for (const auto& i: m_lastRecordInChains) {
+        refCountInLastRecord.at(i.second.second) ++;
+        candidateList.push_back(i.second);
+    }
+    uint32_t neededCounts = m_config.maxSelfReRefCount + 1;
+    uint32_t candidates = 0;
+    while (candidates < m_config.precedingRecordNum - 1) {
+        assert(neededCounts > 0);
+        neededCounts --;
+        candidates += refCountInLastRecord.at(neededCounts);
+    }
+    candidateList.erase(std::remove_if(candidateList.begin(), candidateList.end(),
+                                       [neededCounts](const auto& i){return i.second < neededCounts; }),
+                        candidateList.end());
+    assert(candidateList.size() == candidates);
+
+    std::vector<std::pair<Name, uint32_t>> recordList;
+    std::sample(candidateList.begin(), candidateList.end(),
+                std::back_inserter(recordList), m_config.precedingRecordNum - 1, m_randomEngine);
+
+    for (const auto &[name, count]: recordList) {
+        record.addPointer(name);
+        auto it = m_lastRecordInChains.find(Record::getProducerPrefix(name));
+        assert(it != m_lastRecordInChains.end());
+        if (count == 1)
+            m_lastRecordInChains.erase(it);
+        else it->second.second -= 1;
+        if (record.getPointersFromHeader().size() >= m_config.precedingRecordNum)
+            break;
+    }
 }
 
 std::list<uint64_t> MnemosyneDagLogger::getReplicationSeqId() const {
