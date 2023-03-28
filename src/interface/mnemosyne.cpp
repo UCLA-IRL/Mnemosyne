@@ -52,11 +52,7 @@ void Mnemosyne::onSubscriptionData(const svs::SVSPubSub::SubscriptionData &subDa
         NDN_LOG_WARN("error");
         return;
     }
-    m_eventValidator->validate(*subData.packet, [this, prefix=subData.producerPrefix](const auto& data) {
-        onEventData(data, prefix);
-    }, [](const Data &eventData, auto &&error) {
-        NDN_LOG_ERROR("Event data " << eventData.getFullName() << " verification error: " << error);
-    });
+    onEventData(*subData.packet, subData.producerPrefix);
 }
 
 void Mnemosyne::onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::MissingDataInfo> &info) {
@@ -66,8 +62,8 @@ void Mnemosyne::onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::Missi
     for (const auto &s: info) {
         for (ndn::svs::SeqNo i = s.low; i <= s.high; i++) {
             NDN_LOG_DEBUG("Interface Sync " << groupId << " Fetching item " << s.nodeId << " " << i);
-            m_interfaceSyncs[groupId]->fetchData(s.nodeId, i, [this, s](const Data &data) {
-                onEventData(data, s.nodeId);
+            m_interfaceSyncs[groupId]->fetchData(s.nodeId, i, [this, nodeId = s.nodeId](const Data &data) {
+                onEventData(data, nodeId);
             }, m_config.interfaceSyncRetries);
         }
     }
@@ -103,7 +99,7 @@ void Mnemosyne::onEventData(const Data &data, const ndn::Name& producer) {
 
 ndn::svs::SecurityOptions Mnemosyne::getSecurityOption() {
     ndn::svs::SecurityOptions option(m_keychain);
-    option.validator = make_shared<::util::cxxValidator>(m_eventValidator);
+    option.validator = m_eventValidator ? make_shared<::util::cxxValidator>(m_eventValidator) : nullptr;
     option.encapsulatedDataValidator = option.validator;
     option.dataSigner = std::make_shared<::util::KeyChainOptionSigner>(m_keychain, security::signingByIdentity(
             m_config.peerPrefix));
@@ -113,7 +109,7 @@ ndn::svs::SecurityOptions Mnemosyne::getSecurityOption() {
 }
 
 void Mnemosyne::onRecordUpdate(const Record &record) {
-    m_eventValidator->validate(record.getContentData().value(), [&](const auto &eventData) {
+    auto onValidated = [&](const Data &eventData) {
         const auto &eventFullName = eventData.getFullName();
         m_seenEvents->addEvent(eventFullName);
 
@@ -126,9 +122,17 @@ void Mnemosyne::onRecordUpdate(const Record &record) {
             m_lastImmutableSeqNo = replicationSeqId;
             NDN_LOG_INFO(m_config.peerPrefix << " immutable record ends at " << replicationSeqId);
         }
-    }, [](const auto &data, const auto &error) {
-        NDN_LOG_ERROR("Verification error on event record " << data.getFullName() << ": " << error);
-    });
+    };
+
+    if (m_eventValidator) {
+        m_eventValidator->validate(record.getContentData().value(), onValidated,
+                                   [](const auto &data, const auto &error) {
+                                       NDN_LOG_ERROR("Verification error on event record " << data.getFullName() << ": "
+                                                                                           << error);
+                                   });
+    } else {
+        onValidated(record.getContentData().value());
+    }
 }
 
 Mnemosyne::~Mnemosyne() = default;

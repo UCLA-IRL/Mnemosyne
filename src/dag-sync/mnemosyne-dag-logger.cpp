@@ -252,7 +252,7 @@ ndn::svs::SecurityOptions
 MnemosyneDagLogger::getSecurityOption(KeyChain &keychain, shared_ptr<ndn::security::Validator> recordValidator,
                                       Name peerPrefix) {
     ndn::svs::SecurityOptions option(keychain);
-    option.validator = make_shared<::util::cxxValidator>(recordValidator);
+    option.validator = recordValidator ? make_shared<::util::cxxValidator>(recordValidator) : nullptr;
     option.encapsulatedDataValidator = make_shared<::util::alwaysFailValidator>();
     option.dataSigner = std::make_shared<::util::KeyChainOptionSigner>(keychain,
                                                                        security::signingByIdentity(peerPrefix));

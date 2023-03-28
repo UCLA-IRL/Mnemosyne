@@ -78,8 +78,8 @@ int main(int argc, char* argv[]) {
     }
 
     auto ledger = std::make_shared<Mnemosyne>(*config, keychain, face,
-                                              std::make_shared<ndn::security::ValidatorNull>(),
-                                                      std::make_shared<ndn::security::ValidatorNull>());
+                                              nullptr /*std::make_shared<ndn::security::ValidatorNull>()*/,
+                                              nullptr /*std::make_shared<ndn::security::ValidatorNull>()*/);
 
     face.processEvents();
     return 0;
