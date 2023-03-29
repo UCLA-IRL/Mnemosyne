@@ -35,13 +35,13 @@ class Mnemosyne {
     void onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::MissingDataInfo> &info);
 
     void onEventData(const Data &data, const ndn::Name& producer);
+    void onEventData(const Data &data, const ndn::Name& producer, uint32_t retries);
 
     ndn::svs::SecurityOptions getSecurityOption();
 
     void onRecordUpdate(const Record &record);
 
   protected:
-
 
     //interfaces
     std::list<svs::SVSPubSub> m_interfacePubSubs;

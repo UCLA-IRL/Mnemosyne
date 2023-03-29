@@ -76,7 +76,14 @@ void Mnemosyne::onSyncUpdate(uint32_t groupId, const std::vector<ndn::svs::Missi
 }
 
 void Mnemosyne::onEventData(const Data &data, const ndn::Name& producer) {
-    auto delayedEventInsert = [this, data, producer]() {
+    NDN_LOG_DEBUG("Received event data " << data.getFullName());
+    if (!m_seenEvents->hasEvent(data.getFullName())) {
+        onEventData(data, producer, m_config.insertionRetries);
+    }
+}
+
+void Mnemosyne::onEventData(const Data &data, const ndn::Name& producer, uint32_t retries) {
+    auto eventInsert = [this, data, producer, retries]() {
         if (m_seenEvents->hasEvent(data.getFullName())) {
             NDN_LOG_DEBUG("Event data " << data.getFullName()
                                         << " found in DAG. ");
@@ -92,18 +99,20 @@ void Mnemosyne::onEventData(const Data &data, const ndn::Name& producer) {
                                              << " in record " << Record::getRecordSeqId(record.getRecordFullName()));
         } else {
             m_selfInsertEventProducers->erase(producer);
+            if (retries != 0) {
+                NDN_LOG_DEBUG("Retry insert event data " << data.getFullName());
+                onEventData(data, producer, retries - 1);
+            }
         }
     };
 
-    NDN_LOG_DEBUG("Received event data " << data.getFullName());
     if (m_selfInsertEventProducers->count(producer)) {
-        delayedEventInsert();
+        eventInsert();
         return;
     }
 
     std::uniform_int_distribution<uint32_t> delayDistribution(m_config.insertBackoffMinMs, m_config.insertBackoffMaxMs);
-    if (!m_seenEvents->hasEvent(data.getFullName()))
-        m_scheduler.schedule(time::milliseconds(delayDistribution(m_randomEngine)), delayedEventInsert);
+    m_scheduler.schedule(time::milliseconds(delayDistribution(m_randomEngine)), eventInsert);
 }
 
 ndn::svs::SecurityOptions Mnemosyne::getSecurityOption() {

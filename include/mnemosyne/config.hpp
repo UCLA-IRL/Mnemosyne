@@ -28,6 +28,7 @@ class Config : public LoggerConfig {
     std::chrono::seconds startUpDelay = std::chrono::seconds(5);
 
     uint32_t interfaceSyncRetries = 3;
+    uint32_t insertionRetries = 3;
     /**
      * The interface pub/sub prefix, under which an publication can reach all Mnemosyne loggers.
      */
