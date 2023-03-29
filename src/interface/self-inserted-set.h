@@ -15,6 +15,7 @@ class SelfInsertedSet {
     SelfInsertedSet(uint32_t reset_frequency);
 
     void insert(const ndn::Name &producer);
+    void erase(const ndn::Name &producer);
 
     bool count(const ndn::Name &producer) const;
 

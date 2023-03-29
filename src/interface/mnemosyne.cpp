@@ -84,12 +84,15 @@ void Mnemosyne::onEventData(const Data &data, const ndn::Name& producer) {
         }
         NDN_LOG_DEBUG("Event data " << data.getFullName()
                                     << " not found in DAG. Publishing...");
-        m_selfInsertEventProducers->insert(producer);
         Record record(data, producer);
         auto ret = m_dagSync.createRecord(record);
-        if (ret.success())
+        if (ret.success()) {
+            m_selfInsertEventProducers->insert(producer);
             NDN_LOG_INFO(m_config.peerPrefix << " Published event data " << data.getFullName()
                                              << " in record " << Record::getRecordSeqId(record.getRecordFullName()));
+        } else {
+            m_selfInsertEventProducers->erase(producer);
+        }
     };
 
     NDN_LOG_DEBUG("Received event data " << data.getFullName());

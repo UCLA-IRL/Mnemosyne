@@ -19,6 +19,10 @@ void mnemosyne::interface::SelfInsertedSet::insert(const ndn::Name &producer) {
     }
 }
 
+void mnemosyne::interface::SelfInsertedSet::erase(const ndn::Name &producer) {
+    m_selfInsertEventProducers.erase(producer);
+}
+
 bool mnemosyne::interface::SelfInsertedSet::count(const ndn::Name &producer) const {
     return m_selfInsertEventProducers.count(producer) != 0;
 }
