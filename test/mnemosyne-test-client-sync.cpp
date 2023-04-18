@@ -22,6 +22,7 @@ using namespace ndn;
 
 std::random_device rd;  //Will be used to obtain a seed for the random number engine
 std::mt19937 random_gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+bool generating = true;
 
 void
 periodicAddRecord(KeyChain &keychain, shared_ptr<svs::SVSync> interfaceSync, const Name &peerPrefix, Scheduler &scheduler, float freq_mean) {
@@ -33,9 +34,10 @@ periodicAddRecord(KeyChain &keychain, shared_ptr<svs::SVSync> interfaceSync, con
     // schedule for the next record generation
     std::exponential_distribution<> d(freq_mean);
     auto interval = (long long) (d(random_gen) * 1000000);
-    scheduler.schedule(time::microseconds(interval), [&keychain, interfaceSync, peerPrefix, &scheduler, freq_mean] {
-        periodicAddRecord(keychain, interfaceSync, peerPrefix, scheduler, freq_mean);
-    });
+    if (generating)
+        scheduler.schedule(time::microseconds(interval), [&keychain, interfaceSync, peerPrefix, &scheduler, freq_mean] {
+            periodicAddRecord(keychain, interfaceSync, peerPrefix, scheduler, freq_mean);
+        });
 }
 
 int main(int argc, char **argv) {
@@ -46,7 +48,8 @@ int main(int argc, char **argv) {
             ("interface-sync-prefix,i", po::value<std::string>()->default_value("/ndn/broadcast/mnemosyne-sync"),
              "The prefix for Interface Sync")
             ("client-prefix,c", po::value<std::string>(), "The prefix for the client")
-            ("frequency,f", po::value<float>()->default_value(0.2), "Mean frequency of sending logs per seconds");
+            ("frequency,f", po::value<float>()->default_value(0.2), "Mean frequency of sending logs per seconds")
+            ("generation-time,g", po::value<uint64_t>()->default_value(3600*24*365), "Event Generation time");
 
     po::variables_map vm;
     po::store(po::command_line_parser(argc, argv).options(description).run(), vm);
@@ -72,6 +75,8 @@ int main(int argc, char **argv) {
     Scheduler scheduler(ioService);
     periodicAddRecord(keychain, interfaceSync, vm["client-prefix"].as<std::string>(), scheduler, vm["frequency"].as<float>());
 
+    face.processEvents(time::seconds(vm["generation-time"].as<uint64_t>()));
+    generating = false;
     face.processEvents();
     return 0;
 }
