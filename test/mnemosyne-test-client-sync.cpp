@@ -34,10 +34,9 @@ periodicAddRecord(KeyChain &keychain, shared_ptr<svs::SVSync> interfaceSync, con
     // schedule for the next record generation
     std::exponential_distribution<> d(freq_mean);
     auto interval = (long long) (d(random_gen) * 1000000);
-    if (generating)
-        scheduler.schedule(time::microseconds(interval), [&keychain, interfaceSync, peerPrefix, &scheduler, freq_mean] {
-            periodicAddRecord(keychain, interfaceSync, peerPrefix, scheduler, freq_mean);
-        });
+    scheduler.schedule(time::microseconds(interval), [&keychain, interfaceSync, peerPrefix, &scheduler, freq_mean] {
+        if (generating) periodicAddRecord(keychain, interfaceSync, peerPrefix, scheduler, freq_mean);
+    });
 }
 
 int main(int argc, char **argv) {
