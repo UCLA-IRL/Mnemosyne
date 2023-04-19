@@ -25,7 +25,8 @@ int main(int argc, char* argv[]) {
             ("logger-prefix,l", po::value<std::string>(), "The prefix for the logger")
             ("trust-anchor,a", po::value<std::string>()->default_value("./mnemosyne-anchor.cert"), "The trust anchor file path for the logger")
             ("database-type,t", po::value<std::string>()->default_value("leveldb"), "The database type for the logger")
-            ("database-path,d", po::value<std::string>()->default_value("/tmp/mnemosyne-db/..."), "The database path for the logger");
+            ("database-path,d", po::value<std::string>()->default_value("/tmp/mnemosyne-db/..."), "The database path for the logger")
+            ("immutability-threshold,k", po::value<uint32_t>()->default_value(UINT32_MAX), "The immutability Threshold");
 
     po::variables_map vm;
     po::store(po::command_line_parser(argc, argv).options(description).run(), vm);
@@ -69,6 +70,9 @@ int main(int argc, char* argv[]) {
         config = std::make_shared<Config>(Name(vm["dag-sync-prefix"].as<std::string>()),
                                           Name(vm["dag-hint-prefix"].as<std::string>()),
                                           Name(identity), ps_set, sync_set);
+        if (vm["immutability-threshold"].as<uint32_t>() != UINT32_MAX) {
+            config->maxCountedReplication = vm["immutability-threshold"].as<uint32_t>();
+        }
         config->setDatabase(vm["database-type"].as<std::string>(), databasePath);
         mkdir("/tmp/mnemosyne-db/", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     }
